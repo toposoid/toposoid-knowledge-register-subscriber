@@ -101,10 +101,16 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     .map(MessageAction.Delete(_))
     .via(SqsAckFlow(queueUrl))
     .runWith(Sink.foreach { res: SqsAckResult =>
-      val body = res.messageAction.message.body
-      println(s"received: ${body}")
-      registerKnowledge(body)
+      try {
+        val body = res.messageAction.message.body
+        logger.info(s"received: ${body}")
+        registerKnowledge(body)
+      }catch {
+        case e: Exception => {
 
+          //logger.error(ToposoidUtils.formatMessageForLogger(e.toString(), transversalState.userId), e)
+        }
+      }
     })
 
 }

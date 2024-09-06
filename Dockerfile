@@ -6,10 +6,11 @@ ARG JAVA_OPT_XMX
 ENV DEPLOYMENT=local
 ENV _JAVA_OPTIONS="-Xms512m -Xmx"${JAVA_OPT_XMX}
 
-&& git clone https://github.com/toposoid/toposoid-sentence-transformer-neo4j.git \
-&& cd toposoid-sentence-transformer-neo4j \
+&& git clone https://github.com/toposoid/toposoid-knowledge-register-subscriber.git \
+&& cd toposoid-knowledge-register-subscriber \
 && git pull \
 && git fetch origin ${TARGET_BRANCH} \
 && git checkout ${TARGET_BRANCH}
 
-#runMainで実行。
+COPY ./docker-entrypoint.sh /app/
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
