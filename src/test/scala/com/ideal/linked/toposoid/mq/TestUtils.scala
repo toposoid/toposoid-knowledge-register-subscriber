@@ -19,18 +19,19 @@ package com.ideal.linked.toposoid.mq
 import akka.actor.ActorSystem
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import com.ideal.linked.common.DeploymentConverter.conf
-import com.ideal.linked.toposoid.common.{ToposoidUtils, TransversalState}
+import com.ideal.linked.toposoid.common.{FeatureType, IMAGE, SENTENCE, ToposoidUtils, TransversalState}
+import com.ideal.linked.toposoid.knowledgebase.featurevector.model.FeatureVectorIdentifier
+import com.ideal.linked.toposoid.knowledgebase.image.model.SingleImage
+import com.ideal.linked.toposoid.knowledgebase.nlp.model.FeatureVector
 import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
 import com.ideal.linked.toposoid.sentence.transformer.neo4j.Neo4JUtilsImpl
 import play.api.libs.json.Json
 
 import java.net.URI
-import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, DefaultCredentialsProvider, StaticCredentialsProvider}
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.{SqsAsyncClient, SqsClient}
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
-
-
 
 object TestUtils {
   def deleteNeo4JAllData(transversalState:TransversalState): Unit = {
@@ -47,11 +48,28 @@ object TestUtils {
     Json.parse(jsonResult).as[Neo4jRecords]
   }
 
+   def deleteFeatureVector(featureVectorIdentifier: FeatureVectorIdentifier, featureType: FeatureType): Unit = {
+    val json: String = Json.toJson(featureVectorIdentifier).toString()
+    if (featureType.equals(SENTENCE)) {
+      ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
+    } else if (featureType.equals(IMAGE)) {
+      ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
+    }
+  }
+
+  def getImageVector(url: String): FeatureVector = {
+    val singleImage = SingleImage(url)
+    val json: String = Json.toJson(singleImage).toString()
+    val featureVectorJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_COMMON_IMAGE_RECOGNITION_HOST"), conf.getString("TOPOSOID_COMMON_IMAGE_RECOGNITION_PORT"), "getFeatureVector", transversalState)
+    Json.parse(featureVectorJson).as[FeatureVector]
+  }
+
   def publishMessage(json:String): Unit = {
 
     implicit val actorSystem = ActorSystem("example")
 
-    val queueUrl = "http://192.168.33.10:9324/queue/test-queue.fifo"
+    val testEndPoint = "http://" + conf.getString("TOPOSOID_MQ_HOST") + ":" + conf.getString("TOPOSOID_MQ_PORT")
+    val testQueueUrl = testEndPoint + "/queue/test-queue.fifo"
 
     val sqs = SqsAsyncClient
       .builder()
@@ -60,26 +78,15 @@ object TestUtils {
           AwsBasicCredentials.create("AK", "SK") // (1)
         )
       )
-      .endpointOverride(URI.create("http://192.168.33.10:9324")) // (2)
+      .endpointOverride(URI.create(testEndPoint)) // (2)
       .region(Region.AP_NORTHEAST_1)
       .httpClient(AkkaHttpClient.builder()
         .withActorSystem(actorSystem).build())
       .build()
-    /*
-    val sqs:SqsClient = SqsAsyncClient.builder()
-      .credentialsProvider(
-        StaticCredentialsProvider.create(
-          AwsBasicCredentials.create("AK", "SK") // (1)
-        )
-      )
-      .endpointOverride(new URI("http://192.168.33.10:9324")) // ElasticMQコンテナ向けのURL
-      .httpClient(AkkaHttpClient.builder()
-        .withActorSystem(actorSystem).build())
-      .build();
-     */
+
     sqs.sendMessage(
       SendMessageRequest.builder()
-        .queueUrl(queueUrl)
+        .queueUrl(testQueueUrl)
         .messageGroupId("x")
         .messageBody(json)
         .build()

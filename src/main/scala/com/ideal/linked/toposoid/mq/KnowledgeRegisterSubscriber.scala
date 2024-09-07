@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Linked Ideal LLC.[https://linked-ideal.com/]
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.ideal.linked.toposoid.mq
 
 import java.net.URI
@@ -28,7 +44,7 @@ import scala.util.{Failure, Success, Try}
 
 
 object KnowledgeRegisterSubscriber extends App with LazyLogging {
-  val endpoint = "http://192.168.33.10:9324"
+  val endpoint = "http://" + conf.getString("TOPOSOID_MQ_HOST") + ":" + conf.getString("TOPOSOID_MQ_PORT")
   implicit val actorSystem = ActorSystem("example")
 
   implicit val sqsClient = SqsAsyncClient
@@ -48,11 +64,8 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
   val settings = SqsSourceSettings()
 
 
-  private def registerKnowledge(json:String): Unit = {
+  private def registerKnowledge(knowledgeSentenceSet:KnowledgeSentenceSet, transversalState:TransversalState): Unit = {
     try {
-      val knowledgeRegistration: KnowledgeRegistration = Json.parse(json.toString).as[KnowledgeRegistration]
-      val knowledgeSentenceSet = knowledgeRegistration.knowledgeSentenceSet
-      val transversalState = knowledgeRegistration.transversalState
       val propositionId = UUID.random.toString
       val knowledgeForParserPremise: List[KnowledgeForParser] = knowledgeSentenceSet.premiseList.map(KnowledgeForParser(propositionId, UUID.random.toString, _))
       val knowledgeForParserClaim: List[KnowledgeForParser] = knowledgeSentenceSet.claimList.map(KnowledgeForParser(propositionId, UUID.random.toString, _))
@@ -101,14 +114,16 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     .map(MessageAction.Delete(_))
     .via(SqsAckFlow(queueUrl))
     .runWith(Sink.foreach { res: SqsAckResult =>
+      val body = res.messageAction.message.body
+      val knowledgeRegistration: KnowledgeRegistration = Json.parse(body).as[KnowledgeRegistration]
+      val knowledgeSentenceSet = knowledgeRegistration.knowledgeSentenceSet
+      val transversalState = knowledgeRegistration.transversalState
       try {
-        val body = res.messageAction.message.body
-        logger.info(s"received: ${body}")
-        registerKnowledge(body)
+        registerKnowledge(knowledgeSentenceSet:KnowledgeSentenceSet, transversalState:TransversalState)
+        logger.info(ToposoidUtils.formatMessageForLogger("Registration completed", transversalState.userId))
       }catch {
         case e: Exception => {
-
-          //logger.error(ToposoidUtils.formatMessageForLogger(e.toString(), transversalState.userId), e)
+          logger.error(ToposoidUtils.formatMessageForLogger(e.toString(), transversalState.userId), e)
         }
       }
     })

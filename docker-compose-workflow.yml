@@ -22,6 +22,9 @@ services:
       - TOPOSOID_COMMON_IMAGE_RECOGNITION_PORT=9013
       - TOPOSOID_CONTENTS_ADMIN_HOST=toposoid-contents-admin-web
       - TOPOSOID_CONTENTS_ADMIN_PORT=9012
+      - TOPOSOID_MQ_HOST=elasticmq
+      - TOPOSOID_MQ_PORT=9324
+
   toposoid-sentence-parser-japanese-web:
     image: toposoid/toposoid-sentence-parser-japanese-web:0.6-SNAPSHOT-lowspec
     environment:
@@ -181,7 +184,6 @@ services:
 
   elasticmq:
     image: softwaremill/elasticmq
-    container_name: elasticmq_test
     ports:
       - 9324:9324
     volumes:
