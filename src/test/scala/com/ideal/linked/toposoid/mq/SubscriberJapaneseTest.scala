@@ -17,6 +17,7 @@
 package com.ideal.linked.toposoid.mq
 
 import com.ideal.linked.common.DeploymentConverter.conf
+import com.ideal.linked.toposoid.common.mq.KnowledgeRegistration
 import com.ideal.linked.toposoid.common.{IMAGE, SENTENCE, ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.{FeatureVectorSearchResult, SingleFeatureVectorForSearch}
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeSentenceSet}
@@ -24,6 +25,7 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.flatspec.AnyFlatSpec
 import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
+import io.jvm.uuid.UUID
 import play.api.libs.json.Json
 
 class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with BeforeAndAfterAll {
@@ -33,10 +35,11 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
    * When testing locally, be sure to run sbt "runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber" from the terminal
    */
 
-  val transversalState: TransversalState = TransversalState(userId = "test-user", username = "guest", roleId = 0, csrfToken = "")
+  val transversalState: TransversalState = TransversalState(userId = "test-user", username = "guest", roleId = 0, csrfToken = UUID.random.toString)
+  //Unless you change the Json payload somewhere, it will not be subject to MQ.
 
   before {
-    TestUtils.deleteNeo4JAllData(transversalState)
+
   }
 
   override def beforeAll(): Unit = {
@@ -51,17 +54,12 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
   "the request json" should "be properly registered in the Japanese knowledge database and searchable." in {
 
     val jsonStr: String =
-      """{
-        |  "transversalState": {
-        |    "username": "guest",
-        |    "userId": "test-user",
-        |    "roleId": 0,
-        |    "csrfToken": "hoge"
-        |  },
+      s"""{
+        |"transversalState": ${Json.toJson(transversalState).toString()},
         |  "knowledgeSentenceSet": {
         |    "premiseList": [
         |      {
-        |        "sentence": "これはテストの前提1ですがな。",
+        |        "sentence": "これはテストの前提1です。",
         |        "lang": "ja_JP",
         |        "extentInfoJson": "{}",
         |        "isNegativeSentence": false,
@@ -168,7 +166,8 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     assert(result3.records.size == 1)
     val urlDog = result3.records.head.head.value.featureNode.get.url
 
-    val knowledgeSentenceSet: KnowledgeSentenceSet = Json.parse(jsonStr).as[KnowledgeSentenceSet]
+    val knowledgeRegistration: KnowledgeRegistration = Json.parse(jsonStr.replace("\n","")).as[KnowledgeRegistration]
+    val knowledgeSentenceSet = knowledgeRegistration.knowledgeSentenceSet
 
     for (knowledge <- knowledgeSentenceSet.premiseList ::: knowledgeSentenceSet.claimList) {
       val vector = FeatureVectorizer.getSentenceVector(Knowledge(knowledge.sentence, "ja_JP", "{}"), transversalState)
@@ -176,7 +175,7 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
       val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
       val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
       assert(result.ids.size > 0 && result.similarities.head > 0.999)
-      result.ids.map(x => TestUtils.deleteFeatureVector(x, SENTENCE))
+      result.ids.map(x => TestUtils.deleteFeatureVector(x, SENTENCE, transversalState))
 
       knowledge.knowledgeForImages.foreach(x => {
         val url: String = x.imageReference.reference.surface match {
@@ -184,12 +183,12 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
           case "犬が" => urlDog
           case _ => "BAD URL"
         }
-        val vector = TestUtils.getImageVector(url)
+        val vector = TestUtils.getImageVector(url, transversalState)
         val json: String = Json.toJson(SingleFeatureVectorForSearch(vector = vector.vector, num = 1)).toString()
         val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
         val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
         assert(result.ids.size > 0 && result.similarities.head > 0.999)
-        result.ids.map(x => TestUtils.deleteFeatureVector(x, IMAGE))
+        result.ids.map(x => TestUtils.deleteFeatureVector(x, IMAGE, transversalState))
       })
     }
 

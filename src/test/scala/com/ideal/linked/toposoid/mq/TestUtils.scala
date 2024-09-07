@@ -48,7 +48,7 @@ object TestUtils {
     Json.parse(jsonResult).as[Neo4jRecords]
   }
 
-   def deleteFeatureVector(featureVectorIdentifier: FeatureVectorIdentifier, featureType: FeatureType): Unit = {
+   def deleteFeatureVector(featureVectorIdentifier: FeatureVectorIdentifier, featureType: FeatureType, transversalState:TransversalState): Unit = {
     val json: String = Json.toJson(featureVectorIdentifier).toString()
     if (featureType.equals(SENTENCE)) {
       ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
@@ -57,7 +57,7 @@ object TestUtils {
     }
   }
 
-  def getImageVector(url: String): FeatureVector = {
+  def getImageVector(url: String, transversalState:TransversalState): FeatureVector = {
     val singleImage = SingleImage(url)
     val json: String = Json.toJson(singleImage).toString()
     val featureVectorJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_COMMON_IMAGE_RECOGNITION_HOST"), conf.getString("TOPOSOID_COMMON_IMAGE_RECOGNITION_PORT"), "getFeatureVector", transversalState)
