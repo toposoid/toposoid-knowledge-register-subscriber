@@ -1,7 +1,7 @@
 version: '3'
 services:
   toposoid-knowledge-register-subscriber:
-    image: toposoid/toposoid-knowledge-register-subscriber:0.6-SNAPSHOT
+    image: toposoid-knowledge-register-subscriber:0.6-SNAPSHOT
     tty: true
     environment:
       - TOPOSOID_GRAPHDB_WEB_HOST=scala-data-accessor-neo4j-web
