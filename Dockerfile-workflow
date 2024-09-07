@@ -6,6 +6,8 @@ ARG JAVA_OPT_XMX
 ENV DEPLOYMENT=local
 ENV _JAVA_OPTIONS="-Xms512m -Xmx"${JAVA_OPT_XMX}
 
+RUN apt-get update \
+&& apt-get -y install git \
 && git clone https://github.com/toposoid/toposoid-knowledge-register-subscriber.git \
 && cd toposoid-knowledge-register-subscriber \
 && git pull \
