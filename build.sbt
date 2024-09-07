@@ -9,7 +9,6 @@ lazy val root = (project in file("."))
   .settings(
     name := "toposoid-knowledge-register-subscriber",
     libraryDependencies += scalaTest % Test,
-    libraryDependencies += "com.ideal.linked" %% "scala-common" % "0.6-SNAPSHOT",
     libraryDependencies += "com.ideal.linked" %% "toposoid-sentence-transformer-neo4j" % "0.6-SNAPSHOT",
     libraryDependencies += "com.ideal.linked" %% "toposoid-feature-vectorizer" % "0.6-SNAPSHOT",
     libraryDependencies += "com.typesafe.akka" %% "akka-stream" % "2.6.13",
