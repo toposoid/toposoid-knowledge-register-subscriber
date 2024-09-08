@@ -73,7 +73,6 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
       knowledgeSentenceSetForParser.claimLogicRelation)
     Sentence2Neo4jTransformer.createGraph(knowledgeSentenceSetForParserWithImage, transversalState)
     FeatureVectorizer.createVector(knowledgeSentenceSetForParserWithImage, transversalState)
-    val a = 1/0
   } match {
     case Success(s) => s
     case Failure(e) => throw e
