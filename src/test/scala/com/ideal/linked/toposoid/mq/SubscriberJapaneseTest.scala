@@ -43,11 +43,11 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
   }
 
   override def beforeAll(): Unit = {
-    TestUtils.deleteNeo4JAllData(transversalState)
+    //TestUtils.deleteNeo4JAllData(transversalState)
   }
 
   override def afterAll(): Unit = {
-    TestUtils.deleteNeo4JAllData(transversalState)
+    //TestUtils.deleteNeo4JAllData(transversalState)
   }
 
 
