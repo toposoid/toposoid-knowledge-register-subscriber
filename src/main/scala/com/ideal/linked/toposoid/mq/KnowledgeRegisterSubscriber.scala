@@ -73,7 +73,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
       knowledgeSentenceSetForParser.claimLogicRelation)
     Sentence2Neo4jTransformer.createGraph(knowledgeSentenceSetForParserWithImage, transversalState)
     FeatureVectorizer.createVector(knowledgeSentenceSetForParserWithImage, transversalState)
-    //val a = 1/0
+    val a = 1/0
   } match {
     case Success(s) => s
     case Failure(e) => throw e
@@ -106,9 +106,13 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
   }
 
   private def deleteObject(knowledgeForParser: KnowledgeForParser, transversalState:TransversalState) = {
+    //Delete relationships
     val query = s"MATCH (n)-[r]-() WHERE n.propositionId = '${knowledgeForParser.propositionId}' DELETE n,r"
     val neo4JUtils = new Neo4JUtilsImpl()
     neo4JUtils.executeQuery(query, transversalState)
+    //Delete orphan nodes
+    val query2 = s"MATCH (n) WHERE n.propositionId = '${knowledgeForParser.propositionId}' DELETE n"
+    neo4JUtils.executeQuery(query2, transversalState)
     FeatureVectorizer.removeVector(knowledgeForParser,transversalState)
   }
 
