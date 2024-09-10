@@ -32,10 +32,10 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
 
   /**
    * TODO:CAUTION!!!!
-   * When testing locally, be sure to run sbt "runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber" from the terminal
+   * When testing locally, be sure to run 'sbt "runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber"' from the terminal
    */
 
-  val transversalState: TransversalState = TransversalState(userId = "test-user", username = "guest", roleId = 0, csrfToken = UUID.random.toString)
+  val transversalState: TransversalState = TransversalState(userId = "test-user", username = "guest", roleId = 0, csrfToken = "")
   //Unless you change the Json payload somewhere, it will not be subject to MQ.
 
   before {
@@ -43,11 +43,11 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
   }
 
   override def beforeAll(): Unit = {
-    //TestUtils.deleteNeo4JAllData(transversalState)
+    TestUtils.deleteNeo4JAllData(transversalState)
   }
 
   override def afterAll(): Unit = {
-    //TestUtils.deleteNeo4JAllData(transversalState)
+    TestUtils.deleteNeo4JAllData(transversalState)
   }
 
 
@@ -55,7 +55,9 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
 
     val jsonStr: String =
       s"""{
-        |"transversalState": ${Json.toJson(transversalState).toString()},
+        |  "documentId": "${UUID.random.toString()}",
+        |  "sequentialNumber": 0,
+        |  "transversalState": ${Json.toJson(transversalState).toString()},
         |  "knowledgeSentenceSet": {
         |    "premiseList": [
         |      {

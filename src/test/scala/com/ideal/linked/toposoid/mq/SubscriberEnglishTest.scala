@@ -35,7 +35,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
    * When testing locally, be sure to run sbt "runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber" from the terminal
    */
 
-  val transversalState: TransversalState = TransversalState(userId = "test-user", username = "guest", roleId = 0, csrfToken = UUID.random.toString)
+  val transversalState: TransversalState = TransversalState(userId = "test-user", username = "guest", roleId = 0, csrfToken = "")
   //Unless you change the Json payload somewhere, it will not be subject to MQ.
 
   before {
@@ -55,6 +55,8 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
 
     val jsonStr: String =
       s"""{
+        |  "documentId": "${UUID.random.toString()}",
+        |  "sequentialNumber": 0,
         |  "transversalState": ${Json.toJson(transversalState).toString()},
         |  "knowledgeSentenceSet": {
         |    "premiseList": [
