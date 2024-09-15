@@ -35,6 +35,7 @@ jobs:
             docker compose -f docker-compose-workflow-full.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt headerCheck"
             docker compose -f docker-compose-workflow-full.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt test:headerCheck"
             docker compose -f docker-compose-workflow-full.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt compile"
+            docker compose -f docker-compose-workflow-full.yml up -d mysql
             docker compose -f docker-compose-workflow-full.yml up -d neo4j
             docker compose -f docker-compose-workflow-full.yml up -d elasticmq
             docker compose -f docker-compose-workflow-full.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt 'runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber' &"
@@ -47,6 +48,7 @@ jobs:
             docker compose -f docker-compose-workflow-full.yml up -d toposoid-common-nlp-japanese-web
             docker compose -f docker-compose-workflow-full.yml up -d toposoid-sentence-parser-japanese-web
             docker compose -f docker-compose-workflow-full.yml up -d scala-data-accessor-neo4j-web
+            docker compose -f docker-compose-workflow-full.yml up -d scala-data-accessor-mysql-web
             curl --retry 10 --retry-delay 5 --retry-all-errors -X POST http://localhost:7474
             curl --retry 10 --retry-delay 5 --retry-all-errors -X POST -H "Content-Type: application/json" -d '{"sentence": "これはテストです。"}' http://localhost:9006/getFeatureVector
             docker compose -f docker-compose-workflow-full.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt 'testOnly **.*JapaneseTest'"
