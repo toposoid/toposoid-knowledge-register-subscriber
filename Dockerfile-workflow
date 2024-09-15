@@ -2,9 +2,7 @@ FROM toposoid/toposoid-scala-lib:0.6-SNAPSHOT
 
 WORKDIR /app
 ARG TARGET_BRANCH
-ARG JAVA_OPT_XMX
 ENV DEPLOYMENT=local
-ENV _JAVA_OPTIONS="-Xms512m -Xmx"${JAVA_OPT_XMX}
 
 RUN apt-get update \
 && apt-get -y install git \

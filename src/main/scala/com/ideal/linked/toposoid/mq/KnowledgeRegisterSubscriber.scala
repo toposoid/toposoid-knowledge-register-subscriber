@@ -33,6 +33,7 @@ import com.ideal.linked.toposoid.common.mq.KnowledgeRegistration
 import com.ideal.linked.toposoid.common.{ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.RegistContentResult
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeForImage, KnowledgeSentenceSet}
+import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
 import com.ideal.linked.toposoid.protocol.model.parser.{KnowledgeForParser, KnowledgeSentenceSetForParser}
 import com.ideal.linked.toposoid.sentence.transformer.neo4j.{Neo4JUtilsImpl, Sentence2Neo4jTransformer}
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
@@ -147,6 +148,35 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     )
   }
 
+  private def getSentence(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser):String = {
+    val premiseSentence = knowledgeSentenceSetForParser.premiseList.foldLeft(""){
+      (acc, x) => {
+        acc + x.knowledge.sentence
+      }
+    }
+    val claimSentence = knowledgeSentenceSetForParser.claimList.foldLeft("") {
+      (acc, x) => {
+        acc + x.knowledge.sentence
+      }
+    }
+    premiseSentence + claimSentence
+  }
+  private def add(stateId:Int, knowledgeRegistration:KnowledgeRegistration, knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser ):Unit = Try {
+    val knowledgeRegisterHistoryRecord = KnowledgeRegisterHistoryRecord(
+      stateId = stateId,
+      documentId = knowledgeRegistration.documentId,
+      sequentialNumber = knowledgeRegistration.sequentialNumber,
+      propositionId = knowledgeSentenceSetForParser.claimList.head.propositionId,
+      sentences = getSentence(knowledgeSentenceSetForParser),
+      json = Json.toJson(knowledgeRegistration.knowledgeSentenceSet).toString())
+    val json = Json.toJson(knowledgeRegisterHistoryRecord).toString()
+    val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "addKnowledgeRegisterHistory", knowledgeRegistration.transversalState)
+    if (result.contains("Error")) throw new Exception(result)
+  } match {
+    case Success(s) => s
+    case Failure(e) => throw e
+  }
+
   SqsSource(queueUrl, settings)
     .map(MessageAction.Delete(_))
     .via(SqsAckFlow(queueUrl))
@@ -157,11 +187,13 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
       val transversalState = knowledgeRegistration.transversalState
       try {
         registerKnowledge(knowledgeSentenceSetForParser, transversalState)
+        add(1, knowledgeRegistration, knowledgeSentenceSetForParser)
         logger.info(ToposoidUtils.formatMessageForLogger("Registration completed", transversalState.userId))
       }catch {
         case e: Exception => {
           logger.error(ToposoidUtils.formatMessageForLogger(e.toString(), transversalState.userId), e)
           rollback(knowledgeSentenceSetForParser, transversalState)
+          add(2, knowledgeRegistration, knowledgeSentenceSetForParser)
         }
       }
     })

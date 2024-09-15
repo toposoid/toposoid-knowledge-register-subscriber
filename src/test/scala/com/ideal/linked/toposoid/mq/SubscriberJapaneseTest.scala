@@ -21,6 +21,7 @@ import com.ideal.linked.toposoid.common.mq.KnowledgeRegistration
 import com.ideal.linked.toposoid.common.{IMAGE, SENTENCE, ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.{FeatureVectorSearchResult, SingleFeatureVectorForSearch}
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeSentenceSet}
+import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.flatspec.AnyFlatSpec
 import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
@@ -53,9 +54,10 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
 
   "the request json" should "be properly registered in the Japanese knowledge database and searchable." in {
 
+    val documentId = UUID.random.toString()
     val jsonStr: String =
       s"""{
-        |  "documentId": "${UUID.random.toString()}",
+        |  "documentId": "${documentId}",
         |  "sequentialNumber": 0,
         |  "transversalState": ${Json.toJson(transversalState).toString()},
         |  "knowledgeSentenceSet": {
@@ -194,6 +196,10 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
       })
     }
 
+    //Check RDB registration information
+    val knowledgeRegisterHistoryRecord = TestUtils.checkRDB(documentId, transversalState)
+    assert(knowledgeRegisterHistoryRecord.documentId.equals(documentId))
+    assert(knowledgeRegisterHistoryRecord.stateId == 1)
   }
 
 }

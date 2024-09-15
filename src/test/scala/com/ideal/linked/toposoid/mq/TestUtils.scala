@@ -23,6 +23,7 @@ import com.ideal.linked.toposoid.common.{FeatureType, IMAGE, SENTENCE, ToposoidU
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.FeatureVectorIdentifier
 import com.ideal.linked.toposoid.knowledgebase.image.model.SingleImage
 import com.ideal.linked.toposoid.knowledgebase.nlp.model.FeatureVector
+import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
 import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
 import com.ideal.linked.toposoid.sentence.transformer.neo4j.Neo4JUtilsImpl
 import play.api.libs.json.Json
@@ -62,6 +63,19 @@ object TestUtils {
     val json: String = Json.toJson(singleImage).toString()
     val featureVectorJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_COMMON_IMAGE_RECOGNITION_HOST"), conf.getString("TOPOSOID_COMMON_IMAGE_RECOGNITION_PORT"), "getFeatureVector", transversalState)
     Json.parse(featureVectorJson).as[FeatureVector]
+  }
+
+  def checkRDB(documentId:String, transversalState:TransversalState):KnowledgeRegisterHistoryRecord = {
+    val knowledgeRegisterHistoryRecord = KnowledgeRegisterHistoryRecord(
+      stateId = -1,
+      documentId = documentId,
+      sequentialNumber = -1,
+      propositionId = "",
+      sentences = "",
+      json = "")
+    val json = Json.toJson(knowledgeRegisterHistoryRecord).toString()
+    val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "searchKnowledgeRegisterHistoryByDocumentId", transversalState)
+    Json.parse(result).as[KnowledgeRegisterHistoryRecord]
   }
 
   def publishMessage(json:String): Unit = {

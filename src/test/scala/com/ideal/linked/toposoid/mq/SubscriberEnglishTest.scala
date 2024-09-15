@@ -53,9 +53,10 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
 
   "the request json" should "be properly registered in the English knowledge database and searchable." in {
 
+    val documentId = UUID.random.toString()
     val jsonStr: String =
       s"""{
-        |  "documentId": "${UUID.random.toString()}",
+        |  "documentId": "${documentId}",
         |  "sequentialNumber": 0,
         |  "transversalState": ${Json.toJson(transversalState).toString()},
         |  "knowledgeSentenceSet": {
@@ -202,6 +203,12 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
         result.ids.map(x => TestUtils.deleteFeatureVector(x, IMAGE, transversalState))
       })
     }
+
+    //Check RDB registration information
+    val knowledgeRegisterHistoryRecord = TestUtils.checkRDB(documentId, transversalState)
+    assert(knowledgeRegisterHistoryRecord.documentId.equals(documentId))
+    assert(knowledgeRegisterHistoryRecord.stateId == 1)
+
   }
 
 }
