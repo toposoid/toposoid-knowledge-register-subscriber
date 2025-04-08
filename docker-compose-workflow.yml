@@ -29,6 +29,7 @@ services:
       - TOPOSOID_JVM_XMS=512m
       - TOPOSOID_JVM_XMX=1g
       - TOPOSOID_JVM_XSS=512k
+      - TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE=toposoid-knowledge-register-queue.fifo
 
   toposoid-sentence-parser-japanese-web:
     image: toposoid/toposoid-sentence-parser-japanese-web:0.6-SNAPSHOT-lowspec
