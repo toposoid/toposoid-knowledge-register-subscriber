@@ -29,18 +29,20 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.alpakka.sqs.SqsAckResult
 import com.ideal.linked.common.DeploymentConverter.conf
-import com.ideal.linked.toposoid.common.mq.KnowledgeRegistration
+import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
 import com.ideal.linked.toposoid.common.{ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.RegistContentResult
-import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeForImage, KnowledgeSentenceSet}
+import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation}
 import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
-import com.ideal.linked.toposoid.protocol.model.parser.{KnowledgeForParser, KnowledgeSentenceSetForParser}
-import com.ideal.linked.toposoid.sentence.transformer.neo4j.{Neo4JUtilsImpl, Sentence2Neo4jTransformer}
+import com.ideal.linked.toposoid.protocol.model.base.AnalyzedSentenceObjects
+import com.ideal.linked.toposoid.protocol.model.parser.{InputSentenceForParser, KnowledgeForParser, KnowledgeSentenceSetForParser}
+import com.ideal.linked.toposoid.sentence.transformer.neo4j.{AnalyzedPropositionPair, AnalyzedPropositionSet, Neo4JUtilsImpl, Sentence2Neo4jTransformer}
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json.Json
 import io.jvm.uuid.UUID
 
+import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
 
 
@@ -62,9 +64,39 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
       .withActorSystem(actorSystem).build())
     .build()
 
-  val queueUrl = endpoint + "/queue/test-queue.fifo"
+  val queueUrl = endpoint + "/" + conf.getString("TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE")
   val settings = SqsSourceSettings()
+  private val langPatternJP: Regex = "^ja_.*".r
+  private val langPatternEN: Regex = "^en_.*".r
 
+  private def classifyKnowledgeBySentenceType(premiseList: List[AnalyzedPropositionPair], premiseLogicRelation: List[PropositionRelation],
+                                              claimList: List[AnalyzedPropositionPair], claimLogicRelation: List[PropositionRelation]): AnalyzedPropositionSet = {
+    //TODO:マイクロサービス化
+    //Claim側の情報から、Premiseの情報を追加する。
+    AnalyzedPropositionSet(premiseList = premiseList, premiseLogicRelation = premiseLogicRelation, claimList = claimList, claimLogicRelation = claimLogicRelation)
+  }
+
+  private def getAnalyzedPropositionPairs(knowledgeForParsers:List[KnowledgeForParser], transversalState:TransversalState):List[AnalyzedPropositionPair] = {
+
+    knowledgeForParsers.foldLeft(List.empty[AnalyzedPropositionPair]) {
+      (acc, x) => {
+        //SentenceParserで解析
+        val knowledgeForParser: KnowledgeForParser = x
+        val inputSentenceForParser = InputSentenceForParser(List.empty[KnowledgeForParser], List(knowledgeForParser))
+        val json: String = Json.toJson(inputSentenceForParser).toString()
+        val parserInfo: (String, String) = knowledgeForParser.knowledge.lang match {
+          case langPatternJP() => (conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_HOST"), conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_PORT"))
+          case langPatternEN() => (conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_HOST"), conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_PORT"))
+          case _ => throw new Exception("It is an invalid locale or an unsupported locale.")
+        }
+        val parseResult: String = ToposoidUtils.callComponent(json, parserInfo._1, parserInfo._2, "analyze", transversalState)
+        val analyzedSentenceObjects: AnalyzedSentenceObjects = Json.parse(parseResult).as[AnalyzedSentenceObjects]
+
+        val analyzedPropositionPair: AnalyzedPropositionPair = AnalyzedPropositionPair(analyzedSentenceObjects, knowledgeForParser)
+        acc :+ analyzedPropositionPair
+      }
+    }
+  }
 
   private def registerKnowledge(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser, transversalState:TransversalState) = Try {
     val knowledgeSentenceSetForParserWithImage = KnowledgeSentenceSetForParser(
@@ -72,7 +104,17 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
       knowledgeSentenceSetForParser.premiseLogicRelation,
       registKnowledgeImages(knowledgeSentenceSetForParser.claimList, transversalState),
       knowledgeSentenceSetForParser.claimLogicRelation)
-    Sentence2Neo4jTransformer.createGraph(knowledgeSentenceSetForParserWithImage, transversalState)
+
+    val premiseAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.premiseList, transversalState)
+    val claimAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.claimList, transversalState)
+
+    val classifiedKnowledgeBySentenceType = classifyKnowledgeBySentenceType(
+      premiseList = premiseAnalyzedPropositionPairs,
+      premiseLogicRelation = knowledgeSentenceSetForParser.premiseLogicRelation,
+      claimList = claimAnalyzedPropositionPairs,
+      claimLogicRelation = knowledgeSentenceSetForParser.claimLogicRelation
+    )
+    Sentence2Neo4jTransformer.createGraph(classifiedKnowledgeBySentenceType, transversalState)
     FeatureVectorizer.createVector(knowledgeSentenceSetForParserWithImage, transversalState)
   } match {
     case Success(s) => s
@@ -135,48 +177,73 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     })
     Knowledge(knowledge.sentence, knowledge.lang, knowledge.extentInfoJson, knowledge.isNegativeSentence, knowledgeForImages)
   }
-  private def assignId(knowledgeSentenceSet:KnowledgeSentenceSet):KnowledgeSentenceSetForParser = {
+  private def assignId(knowledgeSentenceSet:KnowledgeSentenceSet):(KnowledgeSentenceSetForParser, String) = {
     val propositionId = UUID.random.toString
     val knowledgeForParserPremise: List[KnowledgeForParser] = knowledgeSentenceSet.premiseList.map(x => KnowledgeForParser(propositionId, UUID.random.toString, convertKnowledge(x)))
     val knowledgeForParserClaim: List[KnowledgeForParser] = knowledgeSentenceSet.claimList.map(x => KnowledgeForParser(propositionId, UUID.random.toString, convertKnowledge(x)))
 
-    KnowledgeSentenceSetForParser(
+    (KnowledgeSentenceSetForParser(
       premiseList = knowledgeForParserPremise,
       premiseLogicRelation = knowledgeSentenceSet.premiseLogicRelation,
       claimList = knowledgeForParserClaim,
       claimLogicRelation = knowledgeSentenceSet.claimLogicRelation
-    )
+    ), propositionId)
   }
 
-  private def getSentence(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser):String = {
-    val premiseSentence = knowledgeSentenceSetForParser.premiseList.foldLeft(""){
+  private def getSentence(knowledgeSentenceSet:KnowledgeSentenceSet):String = {
+    val premiseSentence = knowledgeSentenceSet.premiseList.foldLeft(""){
       (acc, x) => {
-        acc + x.knowledge.sentence
+        acc + x.sentence
       }
     }
-    val claimSentence = knowledgeSentenceSetForParser.claimList.foldLeft("") {
+    val claimSentence = knowledgeSentenceSet.claimList.foldLeft("") {
       (acc, x) => {
-        acc + x.knowledge.sentence
+        acc + x.sentence
       }
     }
     premiseSentence + claimSentence
   }
-  private def add(stateId:Int, knowledgeRegistration:KnowledgeRegistration, knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser ):Unit = Try {
+  private def add(stateId:Int, propositionId:String,  knowledgeRegistrationForManual: KnowledgeRegistrationForManual ):Unit = Try {
     val knowledgeRegisterHistoryRecord = KnowledgeRegisterHistoryRecord(
       stateId = stateId,
-      documentId = knowledgeRegistration.documentId,
-      sequentialNumber = knowledgeRegistration.sequentialNumber,
-      propositionId = knowledgeSentenceSetForParser.claimList.head.propositionId,
-      sentences = getSentence(knowledgeSentenceSetForParser),
-      json = Json.toJson(knowledgeRegistration.knowledgeSentenceSet).toString())
+      documentId = "",
+      sequentialNumber = 1,
+      propositionId = propositionId,
+      sentences = getSentence(knowledgeRegistrationForManual.knowledgeSentenceSet),
+      //json = ""
+      json = Json.toJson(knowledgeRegistrationForManual).toString()
+    )
     val json = Json.toJson(knowledgeRegisterHistoryRecord).toString()
-    val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "addKnowledgeRegisterHistory", knowledgeRegistration.transversalState)
+    val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "addKnowledgeRegisterHistory", knowledgeRegistrationForManual.transversalState)
     if (result.contains("Error")) throw new Exception(result)
   } match {
     case Success(s) => s
     case Failure(e) => throw e
   }
 
+  SqsSource(queueUrl, settings)
+    .map(MessageAction.Delete(_))
+    .via(SqsAckFlow(queueUrl))
+    .runWith(Sink.foreach { res: SqsAckResult =>
+      val body = res.messageAction.message.body
+      val knowledgeRegistrationForManual: KnowledgeRegistrationForManual = Json.parse(body).as[KnowledgeRegistrationForManual]
+      val (knowledgeSentenceSetForParser, propositionId) = assignId(knowledgeRegistrationForManual.knowledgeSentenceSet)
+      val transversalState = knowledgeRegistrationForManual.transversalState
+      try {
+        registerKnowledge(knowledgeSentenceSetForParser, transversalState)
+        add(1, propositionId, knowledgeRegistrationForManual)
+        logger.info(ToposoidUtils.formatMessageForLogger("Registration completed", transversalState.userId))
+      } catch {
+        case e: Exception => {
+          logger.error(ToposoidUtils.formatMessageForLogger(e.toString(), transversalState.userId), e)
+          rollback(knowledgeSentenceSetForParser, transversalState)
+          add(2, propositionId, knowledgeRegistrationForManual)
+        }
+      }
+    })
+
+
+  /*
   SqsSource(queueUrl, settings)
     .map(MessageAction.Delete(_))
     .via(SqsAckFlow(queueUrl))
@@ -197,6 +264,6 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
         }
       }
     })
-
+  */
 }
 

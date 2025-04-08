@@ -17,10 +17,10 @@
 package com.ideal.linked.toposoid.mq
 
 import com.ideal.linked.common.DeploymentConverter.conf
-import com.ideal.linked.toposoid.common.mq.KnowledgeRegistration
+import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
 import com.ideal.linked.toposoid.common.{IMAGE, SENTENCE, ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.{FeatureVectorSearchResult, SingleFeatureVectorForSearch}
-import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeSentenceSet}
+import com.ideal.linked.toposoid.knowledgebase.regist.model.{ImageReference, Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation, Reference}
 import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -54,109 +54,28 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
 
   "the request json" should "be properly registered in the Japanese knowledge database and searchable." in {
 
-    val documentId = UUID.random.toString()
-    val jsonStr: String =
-      s"""{
-        |  "documentId": "${documentId}",
-        |  "sequentialNumber": 0,
-        |  "transversalState": ${Json.toJson(transversalState).toString()},
-        |  "knowledgeSentenceSet": {
-        |    "premiseList": [
-        |      {
-        |        "sentence": "これはテストの前提1です。",
-        |        "lang": "ja_JP",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": []
-        |      },
-        |      {
-        |        "sentence": "これはテストの前提2です。",
-        |        "lang": "ja_JP",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": []
-        |      },
-        |      {
-        |        "sentence": "猫が２匹います。",
-        |        "lang": "ja_JP",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": [
-        |          {
-        |            "id": "",
-        |            "imageReference": {
-        |              "reference": {
-        |                "url": "",
-        |                "surface": "猫が",
-        |                "surfaceIndex": 0,
-        |                "isWholeSentence": false,
-        |                "originalUrlOrReference": "http://images.cocodataset.org/val2017/000000039769.jpg"
-        |              },
-        |              "x": 27,
-        |              "y": 41,
-        |              "width": 287,
-        |              "height": 435
-        |            }
-        |          }
-        |        ]
-        |      }
-        |    ],
-        |    "premiseLogicRelation": [
-        |      {
-        |        "operator": "AND",
-        |        "sourceIndex": 0,
-        |        "destinationIndex": 1
-        |      }
-        |    ],
-        |    "claimList": [
-        |      {
-        |        "sentence": "これはテストの主張1です。",
-        |        "lang": "ja_JP",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": []
-        |      },
-        |      {
-        |        "sentence": "これはテストの主張2です。",
-        |        "lang": "ja_JP",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": []
-        |      },
-        |      {
-        |        "sentence": "犬が1匹います。",
-        |        "lang": "ja_JP",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": [
-        |          {
-        |            "id": "",
-        |            "imageReference": {
-        |              "reference": {
-        |                "url": "",
-        |                "surface": "犬が",
-        |                "surfaceIndex": 0,
-        |                "isWholeSentence": false,
-        |                "originalUrlOrReference": "http://images.cocodataset.org/train2017/000000428746.jpg"
-        |              },
-        |              "x": 435,
-        |              "y": 227,
-        |              "width": 91,
-        |              "height": 69
-        |            }
-        |          }
-        |        ]
-        |      }
-        |    ],
-        |    "claimLogicRelation": [
-        |      {
-        |        "operator": "OR",
-        |        "sourceIndex": 0,
-        |        "destinationIndex": 1
-        |      }
-        |    ]
-        |  }
-        |}""".stripMargin
+    val knowledge1 = Knowledge(sentence = "これはテストの前提1です。", lang = "ja_JP", extentInfoJson = "{}")
+    val knowledge2 = Knowledge(sentence = "これはテストの前提2です。", lang = "ja_JP", extentInfoJson = "{}")
+    val reference3 = Reference(url = "", surface = "猫が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
+    val imageReference3 = ImageReference(reference = reference3, x = 27, y = 41, width = 287, height = 435)
+    val knowledgeForImages3 = KnowledgeForImage(id = "", imageReference = imageReference3)
+    val knowledge3 = Knowledge(sentence = "猫が２匹います。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages=List(knowledgeForImages3))
+
+    val knowledge4 = Knowledge(sentence = "これはテストの主張1です。", lang = "ja_JP", extentInfoJson = "{}")
+    val knowledge5 = Knowledge(sentence = "これはテストの主張2です。", lang = "ja_JP", extentInfoJson = "{}")
+    val reference6 = Reference(url = "", surface = "犬が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
+    val imageReference6 = ImageReference(reference = reference6, x = 435, y = 227, width = 91, height = 69)
+    val knowledgeForImages6 = KnowledgeForImage(id = "", imageReference = imageReference6)
+    val knowledge6 = Knowledge(sentence = "犬が1匹います。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6))
+
+    val knowledgeSentenceSet = KnowledgeSentenceSet(
+      premiseList = List(knowledge1, knowledge2, knowledge3),
+      premiseLogicRelation = List(PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2)),
+      claimList = List(knowledge4, knowledge5, knowledge6),
+      claimLogicRelation = List(PropositionRelation(operator = "OR", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2))
+    )
+    val knowledgeRegistrationForManual = KnowledgeRegistrationForManual(knowledgeSentenceSet = knowledgeSentenceSet, transversalState = transversalState)
+    val jsonStr = Json.toJson(knowledgeRegistrationForManual).toString()
 
     TestUtils.publishMessage(jsonStr.replace("\n",""))
     Thread.sleep(60000)
@@ -169,9 +88,6 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val result3: Neo4jRecords = TestUtils.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/train2017/000000428746.jpg'})-[:ImageEdge]->(t:ClaimNode{surface:'犬が'}) RETURN s, t", transversalState)
     assert(result3.records.size == 1)
     val urlDog = result3.records.head.head.value.featureNode.get.url
-
-    val knowledgeRegistration: KnowledgeRegistration = Json.parse(jsonStr.replace("\n","")).as[KnowledgeRegistration]
-    val knowledgeSentenceSet = knowledgeRegistration.knowledgeSentenceSet
 
     for (knowledge <- knowledgeSentenceSet.premiseList ::: knowledgeSentenceSet.claimList) {
       val vector = FeatureVectorizer.getSentenceVector(Knowledge(knowledge.sentence, "ja_JP", "{}"), transversalState)
@@ -194,12 +110,122 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
         assert(result.ids.size > 0 && result.similarities.head > 0.999)
         result.ids.map(x => TestUtils.deleteFeatureVector(x, IMAGE, transversalState))
       })
+
+      val propositionIds = result.ids.map(_.superiorId).distinct
+      assert(propositionIds.size == 1)
+
+      //Check RDB registration information
+      val knowledgeRegisterHistoryRecords = TestUtils.checkRDB(propositionIds.head, transversalState)
+      assert(knowledgeRegisterHistoryRecords.size == 1)
+      assert(knowledgeRegisterHistoryRecords.head.propositionId.equals(propositionIds.head))
+      assert(knowledgeRegisterHistoryRecords.head.stateId == 1)
+
     }
 
-    //Check RDB registration information
-    val knowledgeRegisterHistoryRecord = TestUtils.checkRDB(documentId, transversalState)
-    assert(knowledgeRegisterHistoryRecord.documentId.equals(documentId))
-    assert(knowledgeRegisterHistoryRecord.stateId == 1)
   }
 
 }
+
+
+/*
+val jsonStr: String =
+  s"""{
+    |  "transversalState": ${Json.toJson(transversalState).toString()},
+    |  "knowledgeSentenceSet": {
+    |    "premiseList": [
+    |      {
+    |        "sentence": "これはテストの前提1です。",
+    |        "lang": "ja_JP",
+    |        "extentInfoJson": "{}",
+    |        "isNegativeSentence": false,
+    |        "knowledgeForImages": []
+    |      },
+    |      {
+    |        "sentence": "これはテストの前提2です。",
+    |        "lang": "ja_JP",
+    |        "extentInfoJson": "{}",
+    |        "isNegativeSentence": false,
+    |        "knowledgeForImages": []
+    |      },
+    |      {
+    |        "sentence": "猫が２匹います。",
+    |        "lang": "ja_JP",
+    |        "extentInfoJson": "{}",
+    |        "isNegativeSentence": false,
+    |        "knowledgeForImages": [
+    |          {
+    |            "id": "",
+    |            "imageReference": {
+    |              "reference": {
+    |                "url": "",
+    |                "surface": "猫が",
+    |                "surfaceIndex": 0,
+    |                "isWholeSentence": false,
+    |                "originalUrlOrReference": "http://images.cocodataset.org/val2017/000000039769.jpg"
+    |              },
+    |              "x": 27,
+    |              "y": 41,
+    |              "width": 287,
+    |              "height": 435
+    |            }
+    |          }
+    |        ]
+    |      }
+    |    ],
+    |    "premiseLogicRelation": [
+    |      {
+    |        "operator": "AND",
+    |        "sourceIndex": 0,
+    |        "destinationIndex": 1
+    |      }
+    |    ],
+    |    "claimList": [
+    |      {
+    |        "sentence": "これはテストの主張1です。",
+    |        "lang": "ja_JP",
+    |        "extentInfoJson": "{}",
+    |        "isNegativeSentence": false,
+    |        "knowledgeForImages": []
+    |      },
+    |      {
+    |        "sentence": "これはテストの主張2です。",
+    |        "lang": "ja_JP",
+    |        "extentInfoJson": "{}",
+    |        "isNegativeSentence": false,
+    |        "knowledgeForImages": []
+    |      },
+    |      {
+    |        "sentence": "犬が1匹います。",
+    |        "lang": "ja_JP",
+    |        "extentInfoJson": "{}",
+    |        "isNegativeSentence": false,
+    |        "knowledgeForImages": [
+    |          {
+    |            "id": "",
+    |            "imageReference": {
+    |              "reference": {
+    |                "url": "",
+    |                "surface": "犬が",
+    |                "surfaceIndex": 0,
+    |                "isWholeSentence": false,
+    |                "originalUrlOrReference": "http://images.cocodataset.org/train2017/000000428746.jpg"
+    |              },
+    |              "x": 435,
+    |              "y": 227,
+    |              "width": 91,
+    |              "height": 69
+    |            }
+    |          }
+    |        ]
+    |      }
+    |    ],
+    |    "claimLogicRelation": [
+    |      {
+    |        "operator": "OR",
+    |        "sourceIndex": 0,
+    |        "destinationIndex": 1
+    |      }
+    |    ]
+    |  }
+    |}""".stripMargin
+*/

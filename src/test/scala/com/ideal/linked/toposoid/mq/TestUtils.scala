@@ -24,6 +24,7 @@ import com.ideal.linked.toposoid.knowledgebase.featurevector.model.FeatureVector
 import com.ideal.linked.toposoid.knowledgebase.image.model.SingleImage
 import com.ideal.linked.toposoid.knowledgebase.nlp.model.FeatureVector
 import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
+import com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber.endpoint
 import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
 import com.ideal.linked.toposoid.sentence.transformer.neo4j.Neo4JUtilsImpl
 import play.api.libs.json.Json
@@ -65,17 +66,17 @@ object TestUtils {
     Json.parse(featureVectorJson).as[FeatureVector]
   }
 
-  def checkRDB(documentId:String, transversalState:TransversalState):KnowledgeRegisterHistoryRecord = {
+  def checkRDB(propositionId:String, transversalState:TransversalState):List[KnowledgeRegisterHistoryRecord] = {
     val knowledgeRegisterHistoryRecord = KnowledgeRegisterHistoryRecord(
       stateId = -1,
-      documentId = documentId,
+      documentId = "",
       sequentialNumber = -1,
-      propositionId = "",
+      propositionId = propositionId,
       sentences = "",
       json = "")
     val json = Json.toJson(knowledgeRegisterHistoryRecord).toString()
-    val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "searchKnowledgeRegisterHistoryByDocumentId", transversalState)
-    Json.parse(result).as[KnowledgeRegisterHistoryRecord]
+    val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "searchKnowledgeRegisterHistoryByPropositionId", transversalState)
+    Json.parse(result).as[List[KnowledgeRegisterHistoryRecord]]
   }
 
   def publishMessage(json:String): Unit = {
@@ -83,7 +84,7 @@ object TestUtils {
     implicit val actorSystem = ActorSystem("example")
 
     val testEndPoint = "http://" + conf.getString("TOPOSOID_MQ_HOST") + ":" + conf.getString("TOPOSOID_MQ_PORT")
-    val testQueueUrl = testEndPoint + "/queue/test-queue.fifo"
+    val queueUrl = testEndPoint + "/" + conf.getString("TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE")
 
     val sqs = SqsAsyncClient
       .builder()
@@ -100,7 +101,7 @@ object TestUtils {
 
     sqs.sendMessage(
       SendMessageRequest.builder()
-        .queueUrl(testQueueUrl)
+        .queueUrl(queueUrl)
         .messageGroupId("x")
         .messageBody(json)
         .build()

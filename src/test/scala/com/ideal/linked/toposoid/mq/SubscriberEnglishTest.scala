@@ -17,12 +17,13 @@
 package com.ideal.linked.toposoid.mq
 
 import com.ideal.linked.common.DeploymentConverter.conf
-import com.ideal.linked.toposoid.common.mq.KnowledgeRegistration
+import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
 import com.ideal.linked.toposoid.common.{IMAGE, SENTENCE, ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.{FeatureVectorSearchResult, SingleFeatureVectorForSearch}
-import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeSentenceSet}
+import com.ideal.linked.toposoid.knowledgebase.regist.model.{ImageReference, Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation, Reference}
 import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
+import com.typesafe.sslconfig.ssl.AlgorithmConstraintsParser.operator
 import io.jvm.uuid.UUID
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -38,9 +39,6 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
   val transversalState: TransversalState = TransversalState(userId = "test-user", username = "guest", roleId = 0, csrfToken = "")
   //Unless you change the Json payload somewhere, it will not be subject to MQ.
 
-  before {
-    TestUtils.deleteNeo4JAllData(transversalState)
-  }
 
   override def beforeAll(): Unit = {
     TestUtils.deleteNeo4JAllData(transversalState)
@@ -50,115 +48,35 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     TestUtils.deleteNeo4JAllData(transversalState)
   }
 
-
   "the request json" should "be properly registered in the English knowledge database and searchable." in {
 
-    val documentId = UUID.random.toString()
-    val jsonStr: String =
-      s"""{
-        |  "documentId": "${documentId}",
-        |  "sequentialNumber": 0,
-        |  "transversalState": ${Json.toJson(transversalState).toString()},
-        |  "knowledgeSentenceSet": {
-        |    "premiseList": [
-        |      {
-        |        "sentence": "This is premise-1.",
-        |        "lang": "en_US",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": []
-        |      },
-        |      {
-        |        "sentence": "This is premise-2.",
-        |        "lang": "en_US",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": []
-        |      },
-        |      {
-        |        "sentence": "There are two cats.",
-        |        "lang": "en_US",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": [
-        |          {
-        |            "id": "",
-        |            "imageReference": {
-        |              "reference": {
-        |                "url": "",
-        |                "surface": "cats",
-        |                "surfaceIndex": 3,
-        |                "isWholeSentence": false,
-        |                "originalUrlOrReference": "http://images.cocodataset.org/val2017/000000039769.jpg"
-        |              },
-        |              "x": 27,
-        |              "y": 41,
-        |              "width": 287,
-        |              "height": 435
-        |            }
-        |          }
-        |        ]
-        |      }
-        |    ],
-        |    "premiseLogicRelation": [
-        |      {
-        |        "operator": "AND",
-        |        "sourceIndex": 0,
-        |        "destinationIndex": 1
-        |      }
-        |    ],
-        |    "claimList": [
-        |      {
-        |        "sentence": "This is claim-1.",
-        |        "lang": "en_US",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": []
-        |      },
-        |      {
-        |        "sentence": "This is claim-2.",
-        |        "lang": "en_US",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": []
-        |      },
-        |      {
-        |        "sentence": "There is a dog",
-        |        "lang": "en_US",
-        |        "extentInfoJson": "{}",
-        |        "isNegativeSentence": false,
-        |        "knowledgeForImages": [
-        |          {
-        |            "id": "",
-        |            "imageReference": {
-        |              "reference": {
-        |                "url": "",
-        |                "surface": "dog",
-        |                "surfaceIndex": 3,
-        |                "isWholeSentence": false,
-        |                "originalUrlOrReference": "http://images.cocodataset.org/train2017/000000428746.jpg"
-        |              },
-        |              "x": 435,
-        |              "y": 227,
-        |              "width": 91,
-        |              "height": 69
-        |            }
-        |          }
-        |        ]
-        |      }
-        |    ],
-        |    "claimLogicRelation": [
-        |      {
-        |        "operator": "OR",
-        |        "sourceIndex": 0,
-        |        "destinationIndex": 1
-        |      }
-        |    ]
-        |  }
-        |}""".stripMargin
+
+    val knowledge1 = Knowledge(sentence = "This is premise-1.", lang = "en_US", extentInfoJson = "{}")
+    val knowledge2 = Knowledge(sentence = "This is premise-2.", lang = "en_US", extentInfoJson = "{}")
+    val reference3 = Reference(url = "", surface = "cats", surfaceIndex = 3, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
+    val imageReference3 = ImageReference(reference = reference3, x = 27, y = 41, width = 287, height = 435)
+    val knowledgeForImages3 = KnowledgeForImage(id = "", imageReference = imageReference3)
+    val knowledge3 = Knowledge(sentence = "There are two cats.", lang = "en_US", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages3))
+
+    val knowledge4 = Knowledge(sentence = "This is claim-1.", lang = "en_US", extentInfoJson = "{}")
+    val knowledge5 = Knowledge(sentence = "This is claim-2.", lang = "en_US", extentInfoJson = "{}")
+    val reference6 = Reference(url = "", surface = "dog", surfaceIndex = 3, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
+    val imageReference6 = ImageReference(reference = reference6, x = 435, y = 227, width = 91, height = 69)
+    val knowledgeForImages6 = KnowledgeForImage(id = "", imageReference = imageReference6)
+    val knowledge6 = Knowledge(sentence = "There is a dog", lang = "en_US", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6))
+
+    val knowledgeSentenceSet = KnowledgeSentenceSet(
+      premiseList = List(knowledge1, knowledge2, knowledge3),
+      premiseLogicRelation = List(PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2)),
+      claimList = List(knowledge4, knowledge5, knowledge6),
+      claimLogicRelation = List(PropositionRelation(operator = "OR", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2))
+    )
+    val knowledgeRegistrationForManual = KnowledgeRegistrationForManual(knowledgeSentenceSet = knowledgeSentenceSet, transversalState = transversalState)
+    val jsonStr = Json.toJson(knowledgeRegistrationForManual).toString()
+
 
     TestUtils.publishMessage(jsonStr.replace("\n",""))
-    Thread.sleep(60000)
+    Thread.sleep(70000)
     val query = "MATCH x=(:ClaimNode{surface:'claim-1'})-[:LocalEdge]-(:ClaimNode)-[:LocalEdge{logicType:'OR'}]-(:ClaimNode)-[:LocalEdge]-(:ClaimNode{surface:'claim-2'}) return x"
     val queryResult: Neo4jRecords = TestUtils.executeQueryAndReturn(query, transversalState)
     assert(queryResult.records.size == 1)
@@ -178,15 +96,13 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     assert(queryResult5.records.size == 1)
     val urlDog = queryResult5.records.head.head.value.featureNode.get.url
 
-    val knowledgeRegistration: KnowledgeRegistration = Json.parse(jsonStr.replace("\n", "")).as[KnowledgeRegistration]
-    val knowledgeSentenceSet = knowledgeRegistration.knowledgeSentenceSet
 
     for (knowledge <- knowledgeSentenceSet.premiseList ::: knowledgeSentenceSet.claimList) {
       val vector = FeatureVectorizer.getSentenceVector(Knowledge(knowledge.sentence, "en_US", "{}"), transversalState)
       val json: String = Json.toJson(SingleFeatureVectorForSearch(vector = vector.vector, num = 1)).toString()
       val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
       val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
-      assert(result.ids.size > 0)
+      assert(result.ids.size > 0 && result.similarities.head > 0.999)
       result.ids.map(x => TestUtils.deleteFeatureVector(x, SENTENCE, transversalState))
 
       knowledge.knowledgeForImages.foreach(x => {
@@ -202,12 +118,18 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
         assert(result.ids.size > 0 && result.similarities.head > 0.999)
         result.ids.map(x => TestUtils.deleteFeatureVector(x, IMAGE, transversalState))
       })
+
+      val propositionIds = result.ids.map(_.superiorId).distinct
+      assert(propositionIds.size == 1)
+
+      //Check RDB registration information
+      val knowledgeRegisterHistoryRecords = TestUtils.checkRDB(propositionIds.head, transversalState)
+      assert(knowledgeRegisterHistoryRecords.size == 1)
+      assert(knowledgeRegisterHistoryRecords.head.propositionId.equals(propositionIds.head))
+      assert(knowledgeRegisterHistoryRecords.head.stateId == 1)
+
     }
 
-    //Check RDB registration information
-    val knowledgeRegisterHistoryRecord = TestUtils.checkRDB(documentId, transversalState)
-    assert(knowledgeRegisterHistoryRecord.documentId.equals(documentId))
-    assert(knowledgeRegisterHistoryRecord.stateId == 1)
 
   }
 
