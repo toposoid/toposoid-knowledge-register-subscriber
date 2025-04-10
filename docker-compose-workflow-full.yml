@@ -198,6 +198,9 @@ services:
       - PLAY_HTTP_PORT=9005
     ports:
       - 9005:9005
+    depends_on:
+      - neo4j
+
   elasticmq:
     image: softwaremill/elasticmq
     ports:
