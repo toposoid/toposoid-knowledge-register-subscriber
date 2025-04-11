@@ -75,7 +75,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     val jsonStr = Json.toJson(knowledgeRegistrationForManual).toString()
 
 
-    TestUtils.publishMessage(jsonStr.replace("\n",""))
+    ToposoidUtils.publishMessage(jsonStr,conf.getString("TOPOSOID_MQ_HOST"), conf.getString("TOPOSOID_MQ_PORT"), conf.getString("TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE"))
     Thread.sleep(70000)
     val query = "MATCH x=(:ClaimNode{surface:'claim-1'})-[:LocalEdge]-(:ClaimNode)-[:LocalEdge{logicType:'OR'}]-(:ClaimNode)-[:LocalEdge]-(:ClaimNode{surface:'claim-2'}) return x"
     val queryResult: Neo4jRecords = TestUtils.executeQueryAndReturn(query, transversalState)

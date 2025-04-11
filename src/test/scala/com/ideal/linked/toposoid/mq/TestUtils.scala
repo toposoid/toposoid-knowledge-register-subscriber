@@ -79,6 +79,7 @@ object TestUtils {
     Json.parse(result).as[List[KnowledgeRegisterHistoryRecord]]
   }
 
+  /*
   def publishMessage(json:String): Unit = {
 
     implicit val actorSystem = ActorSystem("example")
@@ -108,5 +109,5 @@ object TestUtils {
     ).join()
 
   }
-
+  */
 }
