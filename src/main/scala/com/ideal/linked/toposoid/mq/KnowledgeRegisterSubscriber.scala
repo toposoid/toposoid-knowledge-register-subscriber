@@ -55,7 +55,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     .builder()
     .credentialsProvider(
       StaticCredentialsProvider.create(
-        AwsBasicCredentials.create("AK", "SK") // (1)
+        AwsBasicCredentials.create(conf.getString("TOPOSOID_AWS_CREDENTIAL_ACCESSKEY"), conf.getString("TOPOSOID_AWS_CREDINTIAL_SECRETKEY")) // (1)
       )
     )
     .endpointOverride(URI.create(endpoint)) // (2)

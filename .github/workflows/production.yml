@@ -31,6 +31,8 @@ jobs:
             docker system prune -f
             docker volume prune -f
             docker build --build-arg TARGET_BRANCH=${{ env.PJ_BRANCH }} --tag ${{ env.PJ_REPO }}:${{ env.PJ_VERSION }} -f Dockerfile-workflow .
+            sed -i s/__##YOUR_AWS_ACCESS_KEY##__/${{ secrets.AWS_CREDENTIAL_ACCESSKEY }}/g docker-compose-workflow-full.yml
+            sed -i s/__##YOUR_AWS_SECRET_KEY##__/${{ secrets.AWS_CREDINTIAL_SECRETKEY }}/g docker-compose-workflow-full.yml                                  
             docker compose -f docker-compose-workflow-full.yml up -d toposoid-knowledge-register-subscriber
             docker compose -f docker-compose-workflow-full.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt headerCheck"
             docker compose -f docker-compose-workflow-full.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt test:headerCheck"

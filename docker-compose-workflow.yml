@@ -30,6 +30,8 @@ services:
       - TOPOSOID_JVM_XMX=1g
       - TOPOSOID_JVM_XSS=512k
       - TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE=toposoid-knowledge-register-queue.fifo
+      - TOPOSOID_AWS_CREDENTIAL_ACCESSKEY=__##YOUR_AWS_ACCESS_KEY##__
+      - TOPOSOID_AWS_CREDINTIAL_SECRETKEY=__##YOUR_AWS_SECRET_KEY##__
 
   toposoid-sentence-parser-japanese-web:
     image: toposoid/toposoid-sentence-parser-japanese-web:0.6-SNAPSHOT-lowspec
