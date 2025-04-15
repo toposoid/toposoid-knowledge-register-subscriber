@@ -10,7 +10,9 @@ RUN apt-get update \
 && cd toposoid-knowledge-register-subscriber \
 && git pull \
 && git fetch origin ${TARGET_BRANCH} \
-&& git checkout ${TARGET_BRANCH}
+&& git checkout ${TARGET_BRANCH} \
+&& sbt publishLocal \
+&& rm -Rf ./target
 
 COPY ./docker-entrypoint.sh /app/
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
