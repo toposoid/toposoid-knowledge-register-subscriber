@@ -50,12 +50,11 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
   val endpoint = "http://" + conf.getString("TOPOSOID_MQ_HOST") + ":" + conf.getString("TOPOSOID_MQ_PORT")
   implicit val actorSystem = ActorSystem("example")
 
-  //TODO:Credentialsは、BIZ環境にも対応できるようにしておく
   implicit val sqsClient = SqsAsyncClient
     .builder()
     .credentialsProvider(
       StaticCredentialsProvider.create(
-        AwsBasicCredentials.create(conf.getString("TOPOSOID_AWS_CREDENTIAL_ACCESSKEY"), conf.getString("TOPOSOID_AWS_CREDINTIAL_SECRETKEY")) // (1)
+        AwsBasicCredentials.create(conf.getString("TOPOSOID_MQ_ACCESS_KEY"), conf.getString("TOPOSOID_MQ_SECRET_KEY")) // (1)
       )
     )
     .endpointOverride(URI.create(endpoint)) // (2)
