@@ -29,14 +29,15 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.alpakka.sqs.SqsAckResult
 import com.ideal.linked.common.DeploymentConverter.conf
+import com.ideal.linked.toposoid.common.ToposoidUtils.assignId
 import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
-import com.ideal.linked.toposoid.common.{ToposoidUtils, TransversalState}
+import com.ideal.linked.toposoid.common.{Neo4JUtilsImpl, ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.RegistContentResult
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation}
 import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
 import com.ideal.linked.toposoid.protocol.model.base.AnalyzedSentenceObjects
 import com.ideal.linked.toposoid.protocol.model.parser.{InputSentenceForParser, KnowledgeForParser, KnowledgeSentenceSetForParser}
-import com.ideal.linked.toposoid.sentence.transformer.neo4j.{AnalyzedPropositionPair, AnalyzedPropositionSet, Neo4JUtilsImpl, Sentence2Neo4jTransformer}
+import com.ideal.linked.toposoid.sentence.transformer.neo4j.{AnalyzedPropositionPair, AnalyzedPropositionSet, Sentence2Neo4jTransformer}
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json.Json
@@ -169,6 +170,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     }
   }
 
+  /*
   private def convertKnowledge(knowledge:Knowledge):Knowledge = {
     val knowledgeForImages: List[KnowledgeForImage] = knowledge.knowledgeForImages.map(y => {
       val imageFeatureId = UUID.random.toString
@@ -188,7 +190,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
       claimLogicRelation = knowledgeSentenceSet.claimLogicRelation
     ), propositionId)
   }
-
+  */
   private def getSentence(knowledgeSentenceSet:KnowledgeSentenceSet):String = {
     val premiseSentence = knowledgeSentenceSet.premiseList.foldLeft(""){
       (acc, x) => {

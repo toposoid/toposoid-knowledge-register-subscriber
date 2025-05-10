@@ -17,7 +17,7 @@
 package com.ideal.linked.toposoid.mq
 
 import com.ideal.linked.common.DeploymentConverter.conf
-import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
+import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual, MqUtils}
 import com.ideal.linked.toposoid.common.{IMAGE, SENTENCE, ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.{FeatureVectorSearchResult, SingleFeatureVectorForSearch}
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{ImageReference, Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation, Reference}
@@ -41,11 +41,11 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
 
 
   override def beforeAll(): Unit = {
-    TestUtils.deleteNeo4JAllData(transversalState)
+    TestUtilsEx.deleteNeo4JAllData(transversalState)
   }
 
   override def afterAll(): Unit = {
-    TestUtils.deleteNeo4JAllData(transversalState)
+    TestUtilsEx.deleteNeo4JAllData(transversalState)
   }
 
   "the request json" should "be properly registered in the English knowledge database and searchable." in {
@@ -75,24 +75,24 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     val jsonStr = Json.toJson(knowledgeRegistrationForManual).toString()
 
 
-    ToposoidUtils.publishMessage(jsonStr,conf.getString("TOPOSOID_MQ_HOST"), conf.getString("TOPOSOID_MQ_PORT"), conf.getString("TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE"))
+    MqUtils.publishMessage(jsonStr,conf.getString("TOPOSOID_MQ_HOST"), conf.getString("TOPOSOID_MQ_PORT"), conf.getString("TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE"))
     Thread.sleep(70000)
     val query = "MATCH x=(:ClaimNode{surface:'claim-1'})-[:LocalEdge]-(:ClaimNode)-[:LocalEdge{logicType:'OR'}]-(:ClaimNode)-[:LocalEdge]-(:ClaimNode{surface:'claim-2'}) return x"
-    val queryResult: Neo4jRecords = TestUtils.executeQueryAndReturn(query, transversalState)
+    val queryResult: Neo4jRecords = TestUtilsEx.executeQueryAndReturn(query, transversalState)
     assert(queryResult.records.size == 1)
     val query2 = "MATCH x=(:PremiseNode{surface:'premise-1'})-[:LocalEdge]-(:PremiseNode)-[:LocalEdge{logicType:'AND'}]-(:PremiseNode)-[:LocalEdge]-(:PremiseNode{surface:'premise-2'}) return x"
-    val queryResult2: Neo4jRecords = TestUtils.executeQueryAndReturn(query2, transversalState)
+    val queryResult2: Neo4jRecords = TestUtilsEx.executeQueryAndReturn(query2, transversalState)
     assert(queryResult2.records.size == 1)
     val query3 = "MATCH x=(:PremiseNode{surface:'premise-1'})-[:LocalEdge]-(:PremiseNode)-[:LocalEdge{logicType:'IMP'}]-(:ClaimNode)-[:LocalEdge]-(:ClaimNode{surface:'claim-1'}) return x"
-    val queryResult3: Neo4jRecords = TestUtils.executeQueryAndReturn(query3, transversalState)
+    val queryResult3: Neo4jRecords = TestUtilsEx.executeQueryAndReturn(query3, transversalState)
     assert(queryResult3.records.size == 1)
 
 
-    val queryResult4: Neo4jRecords = TestUtils.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/val2017/000000039769.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'cats'}) RETURN s, t", transversalState)
+    val queryResult4: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/val2017/000000039769.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'cats'}) RETURN s, t", transversalState)
     assert(queryResult4.records.size == 1)
 
     val urlCat = queryResult4.records.head.head.value.featureNode.get.url
-    val queryResult5: Neo4jRecords = TestUtils.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/train2017/000000428746.jpg'})-[:ImageEdge]->(t:ClaimNode{surface:'dog'}) RETURN s, t", transversalState)
+    val queryResult5: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/train2017/000000428746.jpg'})-[:ImageEdge]->(t:ClaimNode{surface:'dog'}) RETURN s, t", transversalState)
     assert(queryResult5.records.size == 1)
     val urlDog = queryResult5.records.head.head.value.featureNode.get.url
 
@@ -103,7 +103,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
       val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
       val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
       assert(result.ids.size > 0 && result.similarities.head > 0.999)
-      result.ids.map(x => TestUtils.deleteFeatureVector(x, SENTENCE, transversalState))
+      result.ids.map(x => TestUtilsEx.deleteFeatureVector(x, SENTENCE, transversalState))
 
       knowledge.knowledgeForImages.foreach(x => {
         val url: String = x.imageReference.reference.surface match {
@@ -111,19 +111,19 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
           case "dog" => urlDog
           case _ => "BAD URL"
         }
-        val vector = TestUtils.getImageVector(url, transversalState)
+        val vector = TestUtilsEx.getImageVector(url, transversalState)
         val json: String = Json.toJson(SingleFeatureVectorForSearch(vector = vector.vector, num = 1)).toString()
         val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
         val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
         assert(result.ids.size > 0 && result.similarities.head > 0.999)
-        result.ids.map(x => TestUtils.deleteFeatureVector(x, IMAGE, transversalState))
+        result.ids.map(x => TestUtilsEx.deleteFeatureVector(x, IMAGE, transversalState))
       })
 
       val propositionIds = result.ids.map(_.superiorId).distinct
       assert(propositionIds.size == 1)
 
       //Check RDB registration information
-      val knowledgeRegisterHistoryRecords = TestUtils.checkRDB(propositionIds.head, transversalState)
+      val knowledgeRegisterHistoryRecords = TestUtilsEx.checkRDB(propositionIds.head, transversalState)
       assert(knowledgeRegisterHistoryRecords.size == 1)
       assert(knowledgeRegisterHistoryRecords.head.propositionId.equals(propositionIds.head))
       assert(knowledgeRegisterHistoryRecords.head.stateId == 1)
