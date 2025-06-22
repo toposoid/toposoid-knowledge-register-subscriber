@@ -1,17 +1,18 @@
 /*
- * Copyright 2021 Linked Ideal LLC.[https://linked-ideal.com/]
+ * Copyright (C) 2025  Linked Ideal LLC.[https://linked-ideal.com/]
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package com.ideal.linked.toposoid.mq
@@ -57,21 +58,29 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val knowledge1 = Knowledge(sentence = "これはテストの前提1です。", lang = "ja_JP", extentInfoJson = "{}")
     val knowledge2 = Knowledge(sentence = "これはテストの前提2です。", lang = "ja_JP", extentInfoJson = "{}")
     val reference3 = Reference(url = "", surface = "猫が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
+    val reference3a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
     val imageReference3 = ImageReference(reference = reference3, x = 27, y = 41, width = 287, height = 435)
     val knowledgeForImages3 = KnowledgeForImage(id = "", imageReference = imageReference3)
     val knowledge3 = Knowledge(sentence = "猫が２匹います。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages=List(knowledgeForImages3))
+    //val imageReference3a = ImageReference(reference = reference3a, x = 27, y = 41, width = 287, height = 435)
+    //val knowledgeForImages3a = KnowledgeForImage(id = "", imageReference = imageReference3a)
+    //val knowledge3a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_1", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages=List(knowledgeForImages3a))
 
     val knowledge4 = Knowledge(sentence = "これはテストの主張1です。", lang = "ja_JP", extentInfoJson = "{}")
     val knowledge5 = Knowledge(sentence = "これはテストの主張2です。", lang = "ja_JP", extentInfoJson = "{}")
     val reference6 = Reference(url = "", surface = "犬が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
+    val reference6a = Reference(url = "", surface = "犬が", surfaceIndex = 0, isWholeSentence = true, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
     val imageReference6 = ImageReference(reference = reference6, x = 435, y = 227, width = 91, height = 69)
     val knowledgeForImages6 = KnowledgeForImage(id = "", imageReference = imageReference6)
     val knowledge6 = Knowledge(sentence = "犬が1匹います。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6))
+    val imageReference6a = ImageReference(reference = reference6a, x = 435, y = 227, width = 91, height = 69)
+    val knowledgeForImages6a = KnowledgeForImage(id = "", imageReference = imageReference6a)
+    val knowledge6a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10", lang = "@@_#1", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6a))
 
     val knowledgeSentenceSet = KnowledgeSentenceSet(
       premiseList = List(knowledge1, knowledge2, knowledge3),
       premiseLogicRelation = List(PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2)),
-      claimList = List(knowledge4, knowledge5, knowledge6),
+      claimList = List(knowledge4, knowledge5, knowledge6, knowledge6a),
       claimLogicRelation = List(PropositionRelation(operator = "OR", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2))
     )
     val knowledgeRegistrationForManual = KnowledgeRegistrationForManual(knowledgeSentenceSet = knowledgeSentenceSet, transversalState = transversalState)
@@ -89,6 +98,9 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val result3: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/train2017/000000428746.jpg'})-[:ImageEdge]->(t:ClaimNode{surface:'犬が'}) RETURN s, t", transversalState)
     assert(result3.records.size == 1)
     val urlDog = result3.records.head.head.value.featureNode.get.url
+    val result4 :Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH n:ClaimNode{surface: 'NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10'} RETURN n", transversalState)
+    assert(result4.records.size == 1)
+
 
     for (knowledge <- knowledgeSentenceSet.premiseList ::: knowledgeSentenceSet.claimList) {
       val vector = FeatureVectorizer.getSentenceVector(Knowledge(knowledge.sentence, "ja_JP", "{}"), transversalState)

@@ -1,17 +1,18 @@
 /*
- * Copyright 2021 Linked Ideal LLC.[https://linked-ideal.com/]
+ * Copyright (C) 2025  Linked Ideal LLC.[https://linked-ideal.com/]
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package com.ideal.linked.toposoid.mq
@@ -29,7 +30,7 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.alpakka.sqs.SqsAckResult
 import com.ideal.linked.common.DeploymentConverter.conf
-import com.ideal.linked.toposoid.common.ToposoidUtils.assignId
+import com.ideal.linked.toposoid.common.ToposoidUtils.{assignId, callComponent}
 import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
 import com.ideal.linked.toposoid.common.{Neo4JUtilsImpl, ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.RegistContentResult
@@ -68,6 +69,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
   val settings = SqsSourceSettings()
   private val langPatternJP: Regex = "^ja_.*".r
   private val langPatternEN: Regex = "^en_.*".r
+  private val langPatternSpecialSymbol1: Regex = "^@@_#[0-9]+".r
 
   private def classifyKnowledgeBySentenceType(premiseList: List[AnalyzedPropositionPair], premiseLogicRelation: List[PropositionRelation],
                                               claimList: List[AnalyzedPropositionPair], claimLogicRelation: List[PropositionRelation]): AnalyzedPropositionSet = {
@@ -84,6 +86,8 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
         val knowledgeForParser: KnowledgeForParser = x
         val inputSentenceForParser = InputSentenceForParser(List.empty[KnowledgeForParser], List(knowledgeForParser))
         val json: String = Json.toJson(inputSentenceForParser).toString()
+
+        /*
         val parserInfo: (String, String) = knowledgeForParser.knowledge.lang match {
           case langPatternJP() => (conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_HOST"), conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_PORT"))
           case langPatternEN() => (conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_HOST"), conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_PORT"))
@@ -91,6 +95,27 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
         }
         val parseResult: String = ToposoidUtils.callComponent(json, parserInfo._1, parserInfo._2, "analyze", transversalState)
         val analyzedSentenceObjects: AnalyzedSentenceObjects = Json.parse(parseResult).as[AnalyzedSentenceObjects]
+         */
+
+        val analyzedSentenceObjects:AnalyzedSentenceObjects = knowledgeForParser.knowledge.lang match{
+          case langPatternJP() => {
+            val host = conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_HOST")
+            val port = conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_PORT")
+            val parseResult: String = ToposoidUtils.callComponent(json, host, port, "analyze", transversalState)
+            Json.parse(parseResult).as[AnalyzedSentenceObjects]
+          }
+          case langPatternEN() => {
+            val host = conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_HOST")
+            val port = conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_PORT")
+            val parseResult: String = ToposoidUtils.callComponent(json, host, port, "analyze", transversalState)
+            Json.parse(parseResult).as[AnalyzedSentenceObjects]
+          }
+          case langPatternSpecialSymbol1() => {
+            val aso = ToposoidUtils.parseSpecialSymbol(knowledgeForParser)
+            AnalyzedSentenceObjects(List(aso))
+          }
+          case _ => throw new Exception("It is an invalid locale or an unsupported locale.")
+        }
 
         val analyzedPropositionPair: AnalyzedPropositionPair = AnalyzedPropositionPair(analyzedSentenceObjects, knowledgeForParser)
         acc :+ analyzedPropositionPair
