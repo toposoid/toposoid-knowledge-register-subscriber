@@ -45,6 +45,8 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
   }
 
   override def beforeAll(): Unit = {
+    ToposoidUtils.callComponent("{}", conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "createSchema", transversalState)
+    ToposoidUtils.callComponent("{}", conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_PORT"), "createSchema", transversalState)
     TestUtilsEx.deleteNeo4JAllData(transversalState)
   }
 
@@ -69,11 +71,11 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val knowledge4 = Knowledge(sentence = "これはテストの主張1です。", lang = "ja_JP", extentInfoJson = "{}")
     val knowledge5 = Knowledge(sentence = "これはテストの主張2です。", lang = "ja_JP", extentInfoJson = "{}")
     val reference6 = Reference(url = "", surface = "犬が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
-    val reference6a = Reference(url = "", surface = "犬が", surfaceIndex = 0, isWholeSentence = true, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
+    val reference6a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "https://farm8.staticflickr.com/7103/7210629614_5a388d9a9c_z.jpg", metaInformations = List.empty[String])
     val imageReference6 = ImageReference(reference = reference6, x = 435, y = 227, width = 91, height = 69)
     val knowledgeForImages6 = KnowledgeForImage(id = "", imageReference = imageReference6)
     val knowledge6 = Knowledge(sentence = "犬が1匹います。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6))
-    val imageReference6a = ImageReference(reference = reference6a, x = 435, y = 227, width = 91, height = 69)
+    val imageReference6a = ImageReference(reference = reference6a, x = 23, y = 25, width = 601, height = 341)
     val knowledgeForImages6a = KnowledgeForImage(id = "", imageReference = imageReference6a)
     val knowledge6a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10", lang = "@@_#1", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6a))
 
@@ -92,18 +94,22 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val query = "MATCH x=(:ClaimNode{surface:'主張２です。'})<-[:LocalEdge{logicType:'OR'}]-(:ClaimNode{surface:'主張１です。'})<-[:LocalEdge{logicType:'IMP'}]-(:PremiseNode{surface:'前提１です。'})-[:LocalEdge{logicType:'AND'}]->(:PremiseNode{surface:'前提２です。'}) return x"
     val queryResult: Neo4jRecords = TestUtilsEx.executeQueryAndReturn(query, transversalState)
     assert(queryResult.records.size == 1)
+    val result1: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (n:ClaimNode{surface: 'NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10'}) RETURN n", transversalState)
+    assert(result1.records.size == 1)
+
     val result2: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/val2017/000000039769.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'猫が'}) RETURN s, t", transversalState)
     assert(result2.records.size == 1)
     val urlCat = result2.records.head.head.value.featureNode.get.url
     val result3: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/train2017/000000428746.jpg'})-[:ImageEdge]->(t:ClaimNode{surface:'犬が'}) RETURN s, t", transversalState)
     assert(result3.records.size == 1)
     val urlDog = result3.records.head.head.value.featureNode.get.url
-    val result4 :Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH n:ClaimNode{surface: 'NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10'} RETURN n", transversalState)
+    val result4: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'https://farm8.staticflickr.com/7103/7210629614_5a388d9a9c_z.jpg'})-[:ImageEdge]->(t:SemiGlobalClaimNode) RETURN s, t", transversalState)
     assert(result4.records.size == 1)
+    val urlTrack = result4.records.head.head.value.featureNode.get.url
 
 
     for (knowledge <- knowledgeSentenceSet.premiseList ::: knowledgeSentenceSet.claimList) {
-      val vector = FeatureVectorizer.getSentenceVector(Knowledge(knowledge.sentence, "ja_JP", "{}"), transversalState)
+      val vector = FeatureVectorizer.getSentenceVector(Knowledge(knowledge.sentence, knowledge.lang, "{}"), transversalState)
       val json: String = Json.toJson(SingleFeatureVectorForSearch(vector = vector.vector, num = 1)).toString()
       val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
       val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
@@ -114,6 +120,7 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
         val url: String = x.imageReference.reference.surface match {
           case "猫が" => urlCat
           case "犬が" => urlDog
+          case "" => urlTrack
           case _ => "BAD URL"
         }
         val vector = TestUtilsEx.getImageVector(url, transversalState)

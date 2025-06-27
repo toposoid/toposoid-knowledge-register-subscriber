@@ -67,9 +67,9 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
 
   val queueUrl = endpoint + "/" + conf.getString("TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE")
   val settings = SqsSourceSettings()
-  private val langPatternJP: Regex = "^ja_.*".r
-  private val langPatternEN: Regex = "^en_.*".r
-  private val langPatternSpecialSymbol1: Regex = "^@@_#[0-9]+".r
+  //private val langPatternJP: Regex = "^ja_.*".r
+  //private val langPatternEN: Regex = "^en_.*".r
+  //private val langPatternSpecialSymbol1: Regex = "^@@_#[0-9]+".r
 
   private def classifyKnowledgeBySentenceType(premiseList: List[AnalyzedPropositionPair], premiseLogicRelation: List[PropositionRelation],
                                               claimList: List[AnalyzedPropositionPair], claimLogicRelation: List[PropositionRelation]): AnalyzedPropositionSet = {
@@ -98,19 +98,19 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
          */
 
         val analyzedSentenceObjects:AnalyzedSentenceObjects = knowledgeForParser.knowledge.lang match{
-          case langPatternJP() => {
+          case ToposoidUtils.langPatternJP() => {
             val host = conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_HOST")
             val port = conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_PORT")
             val parseResult: String = ToposoidUtils.callComponent(json, host, port, "analyze", transversalState)
             Json.parse(parseResult).as[AnalyzedSentenceObjects]
           }
-          case langPatternEN() => {
+          case ToposoidUtils.langPatternEN() => {
             val host = conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_HOST")
             val port = conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_PORT")
             val parseResult: String = ToposoidUtils.callComponent(json, host, port, "analyze", transversalState)
             Json.parse(parseResult).as[AnalyzedSentenceObjects]
           }
-          case langPatternSpecialSymbol1() => {
+          case ToposoidUtils.langPatternSpecialSymbol1() => {
             val aso = ToposoidUtils.parseSpecialSymbol(knowledgeForParser)
             AnalyzedSentenceObjects(List(aso))
           }

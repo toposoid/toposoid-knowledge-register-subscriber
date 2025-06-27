@@ -62,11 +62,11 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     val knowledge4 = Knowledge(sentence = "This is claim-1.", lang = "en_US", extentInfoJson = "{}")
     val knowledge5 = Knowledge(sentence = "This is claim-2.", lang = "en_US", extentInfoJson = "{}")
     val reference6 = Reference(url = "", surface = "dog", surfaceIndex = 3, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
-    val reference6a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
+    val reference6a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "https://farm8.staticflickr.com/7103/7210629614_5a388d9a9c_z.jpg", metaInformations = List.empty[String])
     val imageReference6 = ImageReference(reference = reference6, x = 435, y = 227, width = 91, height = 69)
     val knowledgeForImages6 = KnowledgeForImage(id = "", imageReference = imageReference6)
     val knowledge6 = Knowledge(sentence = "There is a dog", lang = "en_US", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6))
-    val imageReference6a = ImageReference(reference = reference6a, x = 435, y = 227, width = 91, height = 69)
+    val imageReference6a = ImageReference(reference = reference6a, x = 23, y = 25, width = 601, height = 341)
     val knowledgeForImages6a = KnowledgeForImage(id = "", imageReference = imageReference6a)
     val knowledge6a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10", lang = "@@_#1", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6a))
 
@@ -91,15 +91,21 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     val query3 = "MATCH x=(:PremiseNode{surface:'premise-1'})-[:LocalEdge]-(:PremiseNode)-[:LocalEdge{logicType:'IMP'}]-(:ClaimNode)-[:LocalEdge]-(:ClaimNode{surface:'claim-1'}) return x"
     val queryResult3: Neo4jRecords = TestUtilsEx.executeQueryAndReturn(query3, transversalState)
     assert(queryResult3.records.size == 1)
+    val result4: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (n:ClaimNode{surface: 'NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10'}) RETURN n", transversalState)
+    assert(result4.records.size == 1)
 
 
     val queryResult4: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/val2017/000000039769.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'cats'}) RETURN s, t", transversalState)
     assert(queryResult4.records.size == 1)
-
     val urlCat = queryResult4.records.head.head.value.featureNode.get.url
+
     val queryResult5: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/train2017/000000428746.jpg'})-[:ImageEdge]->(t:ClaimNode{surface:'dog'}) RETURN s, t", transversalState)
     assert(queryResult5.records.size == 1)
     val urlDog = queryResult5.records.head.head.value.featureNode.get.url
+
+    val queryResult6: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'https://farm8.staticflickr.com/7103/7210629614_5a388d9a9c_z.jpg'})-[:ImageEdge]->(t:SemiGlobalClaimNode) RETURN s, t", transversalState)
+    assert(queryResult6.records.size == 1)
+    val urlTrack = queryResult6.records.head.head.value.featureNode.get.url
 
 
     for (knowledge <- knowledgeSentenceSet.premiseList ::: knowledgeSentenceSet.claimList) {
@@ -114,6 +120,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
         val url: String = x.imageReference.reference.surface match {
           case "cats" => urlCat
           case "dog" => urlDog
+          case "" => urlTrack
           case _ => "BAD URL"
         }
         val vector = TestUtilsEx.getImageVector(url, transversalState)
