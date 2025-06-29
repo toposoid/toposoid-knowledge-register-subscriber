@@ -38,7 +38,7 @@ jobs:
             docker compose -f docker-compose-workflow.yml up -d mysql
             docker compose -f docker-compose-workflow.yml up -d neo4j
             docker compose -f docker-compose-workflow.yml up -d elasticmq  
-            docker compose -f docker-compose-workflow.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt 'runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber'　&"
+            docker compose -f docker-compose-workflow.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt 'runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber' &"
             docker compose -f docker-compose-workflow.yml up -d sentence-weaviate
             docker compose -f docker-compose-workflow.yml up -d data-accessor-sentence-weaviate-web
             docker compose -f docker-compose-workflow.yml up -d image-weaviate
