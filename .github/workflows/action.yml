@@ -52,7 +52,7 @@ jobs:
             curl --retry 15 --retry-delay 5 --retry-all-errors -X POST http://localhost:7474
             curl --retry 15 --retry-delay 5 --retry-all-errors -X POST -H "Content-Type: application/json" -d '{"sentence": "これはテストです。"}' http://localhost:9006/getFeatureVector
             echo 'quit' | curl -s -o /dev/null telnet://localhost:3306            
-            sleep 120
+            sleep 60
             docker compose -f docker-compose-workflow.yml exec -T ${{ env.PJ_REPO }} bash -c "cd ${{ env.PJ_REPO }} && sbt 'testOnly **.*JapaneseTest'"                                  
             docker compose -f docker-compose-workflow.yml rm -fsv toposoid-common-nlp-japanese-web
             docker compose -f docker-compose-workflow.yml rm -fsv toposoid-sentence-parser-japanese-web
