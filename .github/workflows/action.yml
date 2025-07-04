@@ -48,7 +48,7 @@ jobs:
             docker compose -f docker-compose-workflow.yml up -d toposoid-common-nlp-japanese-web
             docker compose -f docker-compose-workflow.yml up -d toposoid-common-nlp-english-web #Required for NO_REFERENCE embedding          
             docker compose -f docker-compose-workflow.yml up -d toposoid-sentence-parser-japanese-web
-            docker compose -f docker-compose-workflow.yml up -d scala-data-accessor-neo4j-web
+            docker compose -f docker-compose-workflow.yml up -d data-accessor-neo4j-web
             docker compose -f docker-compose-workflow.yml up -d data-accessor-mysql-web
             curl --retry 15 --retry-delay 5 --retry-all-errors -X POST http://localhost:7474
             curl --retry 15 --retry-delay 5 --retry-all-errors -X POST -H "Content-Type: application/json" -H "X_TOPOSOID_TRANSVERSAL_STATE: {'userId':'test-user', 'username':'guest', 'roleId':0, 'csrfToken':''}" -d '{"sentence": "これはテストです。"}' http://localhost:9006/getFeatureVector
@@ -68,11 +68,11 @@ jobs:
         uses: crazy-max/ghaction-docker-meta@v3
         with:
           images: toposoid/${{ env.PJ_REPO }}:${{ env.PJ_VERSION }}
-      - name: Login to GHCR
+      - name: Login to CR
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.GHCR_USER }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          username: toposoid
+          password: ${{ secrets.CR_TOKEN }}
       - name: Build And Push Docker Image For Test
         uses: docker/build-push-action@v3
         with:

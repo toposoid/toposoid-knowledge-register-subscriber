@@ -16,7 +16,7 @@ if [ -n "${TOPOSOID_JVM_XSS}" ]; then
 else
   _JAVA_OPTIONS="$_JAVA_OPTIONS -Xss512k "
 fi
-
+export _JAVA_OPTIONS=$_JAVA_OPTIONS
 cd /app/toposoid-knowledge-register-subscriber
 sbt "runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber"
 
