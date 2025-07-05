@@ -1,11 +1,18 @@
 # toposoid-knowledge-register-subscriber
+This is a subscriber that works as a microservice within the Toposoid project.
+Toposoid is a knowledge base construction platform.(see [Toposoid　Root Project](https://github.com/toposoid/toposoid.git))
+This microservice get information from Neo4J graph database. outputs the result in JSON.
 
 
 [![Test And Build](https://github.com/toposoid/toposoid-knowledge-register-subscriber/actions/workflows/action.yml/badge.svg)](https://github.com/toposoid/toposoid-knowledge-register-subscriber/actions/workflows/action.yml)
 
 ## Requirements
 Scala version 2.13.x,   
-Sbt version 1.9.0.
+Sbt version 1.4.9.
+
+## Recommended Environment For Standalone
+* Required: at least 8GB of RAM.
+* Required: at least 1.33G of HDD(Docker Image Size)
 
 ## Setup
 ```
