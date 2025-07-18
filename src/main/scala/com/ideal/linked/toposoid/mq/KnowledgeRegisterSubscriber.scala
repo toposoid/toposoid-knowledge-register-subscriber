@@ -180,7 +180,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     //Delete orphan nodes
     val query2 = s"MATCH (n) WHERE n.propositionId = '${knowledgeForParser.propositionId}' DELETE n"
     neo4JUtils.executeQuery(query2, transversalState)
-    FeatureVectorizer.removeVector(knowledgeForParser,transversalState)
+    FeatureVectorizer.removeVectorByPropositionId(knowledgeForParser, transversalState)
   }
 
   private def rollback(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser, transversalState:TransversalState)= {
