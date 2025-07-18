@@ -24,11 +24,11 @@ jobs:
             docker rm --force $(docker ps -a -q) > /dev/null 2>&1 && :
             docker rmi --force ${{ env.PJ_REPO }}:${{ env.PJ_VERSION }}> /dev/null 2>&1 && :
             docker rmi --force toposoid/${{ env.PJ_REPO }}:${{ env.PJ_VERSION }}> /dev/null 2>&1 && :
-            docker rmi --force toposoid/${{ env.PJ_REPO }}:${{ env.PJ_VERSION }}-lowspec > /dev/null 2>&1 && :          
+            docker rmi --force toposoid/toposoid-scala-lib:${{ env.PJ_VERSION }}> /dev/null 2>&1 && :       
             docker images
             docker system prune -f
             docker volume prune -f
-            docker build --build-arg TARGET_BRANCH=${{ env.PJ_BRANCH }} --tag ${{ env.PJ_REPO }}:${{ env.PJ_VERSION }} --load -f Dockerfile-workflow .            
+            docker build --build-arg TARGET_BRANCH=${{ env.PJ_BRANCH }} --tag ${{ env.PJ_REPO }}:${{ env.PJ_VERSION }} -f Dockerfile-workflow --no-cache .            
             sed -i s/__##YOUR_AWS_ACCESS_KEY##__/${{ secrets.AWS_CREDENTIAL_ACCESSKEY }}/g docker-compose-workflow.yml
             sed -i s/__##YOUR_AWS_SECRET_KEY##__/${{ secrets.AWS_CREDINTIAL_SECRETKEY }}/g docker-compose-workflow.yml                        
             docker compose -f docker-compose-workflow.yml up -d toposoid-knowledge-register-subscriber
