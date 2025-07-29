@@ -1,7 +1,7 @@
 # toposoid-knowledge-register-subscriber
 This is a subscriber that works as a microservice within the Toposoid project.
 Toposoid is a knowledge base construction platform.(see [Toposoid　Root Project](https://github.com/toposoid/toposoid.git))
-This microservice get information from Neo4J graph database. outputs the result in JSON.
+This microservice provides the functionality for manual registration.
 
 
 [![Test And Build](https://github.com/toposoid/toposoid-knowledge-register-subscriber/actions/workflows/action.yml/badge.svg)](https://github.com/toposoid/toposoid-knowledge-register-subscriber/actions/workflows/action.yml)
@@ -17,11 +17,51 @@ Sbt version 1.4.9.
 ## Setup
 ```
 sbt　publishLocal
+sbt "runMain com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber"
 ```
 
 ## Usage
+```bash
+echo 'MessageBody=
+{
+  "knowledgeSentenceSet": {
+    "premiseList": [],
+    "premiseLogicRelation": [],
+    "claimList": [
+      {
+        "sentence": "This is a Test.",
+        "lang": "en_US",
+        "extentInfoJson": "{}",
+        "isNegativeSentence": false,
+        "knowledgeForImages": [],
+        "knowledgeForTables": [],
+        "knowledgeForDocument": {
+          "id": "",
+          "filename": "",
+          "url": "",
+          "titleOfTopPage": ""
+        },
+        "documentPageReference": {
+          "pageNo": -1,
+          "references": [],
+          "tableOfContents": [],
+          "headlines": []
+        }
+      }
+    ],
+    "claimLogicRelation": []
+  },
+  "transversalState": {
+    "userId": "test-user",
+    "username": "guest",
+    "roleId": 0,
+    "csrfToken": ""
+  }
+}' |  sed 's/ /%20/g' > /tmp/test.json && curl -X POST -d@/tmp/test.json "http://localhost:9324?Action=SendMessage&QueueUrl=http://localhost:9324/toposoid-knowledge-register-queue.fifo&MessageGroupId=x"
+```
 
 ## Note
+* When executing with curl, it does not work in Japanese.
 
 ## License
 This program is offered under a commercial and under the AGPL license.
