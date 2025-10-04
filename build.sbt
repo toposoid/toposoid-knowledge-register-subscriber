@@ -2,7 +2,7 @@ import Dependencies._
 import de.heikoseeberger.sbtheader.License
 
 ThisBuild / scalaVersion     := "2.13.11"
-ThisBuild / version          := "0.6"
+ThisBuild / version          := "0.7-SNAPSHOT"
 ThisBuild / organization     := "com.ideal.linked"
 ThisBuild / organizationName := "toposoid-knowledge-register-subscriber"
 
@@ -10,8 +10,8 @@ lazy val root = (project in file("."))
   .settings(
     name := "toposoid-knowledge-register-subscriber",
     libraryDependencies += scalaTest % Test,
-    libraryDependencies += "com.ideal.linked" %% "toposoid-sentence-transformer-neo4j" % "0.6",
-    libraryDependencies += "com.ideal.linked" %% "toposoid-feature-vectorizer" % "0.6",
+    libraryDependencies += "com.ideal.linked" %% "toposoid-sentence-transformer-neo4j" % "0.7-SNAPSHOT",
+    libraryDependencies += "com.ideal.linked" %% "toposoid-feature-vectorizer" % "0.7-SNAPSHOT",
     libraryDependencies += "com.typesafe.akka" %% "akka-stream" % "2.6.13",
     libraryDependencies += "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "2.0.2",
     libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.2",
