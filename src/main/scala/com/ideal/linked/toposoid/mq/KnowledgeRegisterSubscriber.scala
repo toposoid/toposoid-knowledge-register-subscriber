@@ -42,7 +42,7 @@ import com.ideal.linked.toposoid.sentence.transformer.neo4j.{AnalyzedProposition
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json.Json
-import io.jvm.uuid.UUID
+//import io.jvm.uuid.UUID
 
 import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
@@ -50,9 +50,9 @@ import scala.util.{Failure, Success, Try}
 
 object KnowledgeRegisterSubscriber extends App with LazyLogging {
   val endpoint = "http://" + conf.getString("TOPOSOID_MQ_HOST") + ":" + conf.getString("TOPOSOID_MQ_PORT")
-  implicit val actorSystem = ActorSystem("example")
+  implicit val actorSystem:ActorSystem = ActorSystem("example")
 
-  implicit val sqsClient = SqsAsyncClient
+  implicit val sqsClient:SqsAsyncClient = SqsAsyncClient
     .builder()
     .credentialsProvider(
       StaticCredentialsProvider.create(
@@ -151,7 +151,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     knowledgeForParsers.foldLeft(List.empty[KnowledgeForParser]) {
       (acc, x) => {
         val knowledgeForImages: List[KnowledgeForImage] = x.knowledge.knowledgeForImages.map(y => {
-          val imageFeatureId = UUID.random.toString
+          val imageFeatureId = java.util.UUID.randomUUID().toString
           val json: String = Json.toJson(KnowledgeForImage(imageFeatureId, y.imageReference)).toString()
           val knowledgeForImageJson: String = ToposoidUtils.callComponent(json,
             conf.getString("TOPOSOID_CONTENTS_ADMIN_HOST"),
@@ -198,15 +198,15 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
   /*
   private def convertKnowledge(knowledge:Knowledge):Knowledge = {
     val knowledgeForImages: List[KnowledgeForImage] = knowledge.knowledgeForImages.map(y => {
-      val imageFeatureId = UUID.random.toString
+      val imageFeatureId = java.util.UUID.randomUUID().toString
       KnowledgeForImage(imageFeatureId, y.imageReference)
     })
     Knowledge(knowledge.sentence, knowledge.lang, knowledge.extentInfoJson, knowledge.isNegativeSentence, knowledgeForImages)
   }
   private def assignId(knowledgeSentenceSet:KnowledgeSentenceSet):(KnowledgeSentenceSetForParser, String) = {
-    val propositionId = UUID.random.toString
-    val knowledgeForParserPremise: List[KnowledgeForParser] = knowledgeSentenceSet.premiseList.map(x => KnowledgeForParser(propositionId, UUID.random.toString, convertKnowledge(x)))
-    val knowledgeForParserClaim: List[KnowledgeForParser] = knowledgeSentenceSet.claimList.map(x => KnowledgeForParser(propositionId, UUID.random.toString, convertKnowledge(x)))
+    val propositionId = java.util.UUID.randomUUID().toString
+    val knowledgeForParserPremise: List[KnowledgeForParser] = knowledgeSentenceSet.premiseList.map(x => KnowledgeForParser(propositionId, java.util.UUID.randomUUID().toString, convertKnowledge(x)))
+    val knowledgeForParserClaim: List[KnowledgeForParser] = knowledgeSentenceSet.claimList.map(x => KnowledgeForParser(propositionId, java.util.UUID.randomUUID().toString, convertKnowledge(x)))
 
     (KnowledgeSentenceSetForParser(
       premiseList = knowledgeForParserPremise,
@@ -250,7 +250,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
   SqsSource(queueUrl, settings)
     .map(MessageAction.Delete(_))
     .via(SqsAckFlow(queueUrl))
-    .runWith(Sink.foreach { res: SqsAckResult =>
+    .runWith(Sink.foreach { (res: SqsAckResult) => {
       val body = res.messageAction.message.body
       val knowledgeRegistrationForManual: KnowledgeRegistrationForManual = Json.parse(body).as[KnowledgeRegistrationForManual]
       val (knowledgeSentenceSetForParser, propositionId) = assignId(knowledgeRegistrationForManual.knowledgeSentenceSet)
@@ -266,7 +266,7 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
           add(2, propositionId, knowledgeRegistrationForManual)
         }
       }
-    })
+    }})
 
 
   /*
