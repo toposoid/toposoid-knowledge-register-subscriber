@@ -24,8 +24,8 @@ import com.ideal.linked.toposoid.knowledgebase.featurevector.model.{FeatureVecto
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{ImageReference, Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation, Reference}
 import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
-import com.typesafe.sslconfig.ssl.AlgorithmConstraintsParser.operator
-import io.jvm.uuid.UUID
+//import com.typesafe.sslconfig.ssl.AlgorithmConstraintsParser.operator
+//import io.jvm.uuid.UUID
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import play.api.libs.json.Json
