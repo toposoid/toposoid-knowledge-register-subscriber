@@ -6,6 +6,10 @@ ThisBuild / version          := "0.7-SNAPSHOT"
 ThisBuild / organization     := "com.ideal.linked"
 //ThisBuild / organizationName := "toposoid-knowledge-register-subscriber"
 
+val AkkaVersion = "2.10.11"
+val AkkaHttpVersion = "10.7.3"
+val AkkaToken = sys.env.get("TOPOSOID_AKKA_TOKEN").get
+
 lazy val root = (project in file("."))
   .settings(
     name := "toposoid-knowledge-register-subscriber",
@@ -14,11 +18,12 @@ lazy val root = (project in file("."))
     libraryDependencies += scalaTest % Test,
     libraryDependencies += "com.ideal.linked" %% "toposoid-sentence-transformer-neo4j" % "0.7-SNAPSHOT" exclude("org.slf4j","slf4j-api"),
     libraryDependencies += "com.ideal.linked" %% "toposoid-feature-vectorizer" % "0.7-SNAPSHOT" exclude("org.slf4j","slf4j-api"),
-    libraryDependencies += "com.typesafe.akka" %% "akka-stream" % "2.10.9" exclude("org.slf4j","slf4j-api"),
-    libraryDependencies += "com.typesafe.akka" %% "akka-pki" % "2.10.9" exclude("org.slf4j","slf4j-api"),    
-    libraryDependencies += "com.typesafe.akka" %% "akka-http-spray-json" % "10.7.2" exclude("org.slf4j","slf4j-api"),
-    libraryDependencies += "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "9.0.2" exclude("org.slf4j","slf4j-api"),
-    libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.10.9" exclude("org.slf4j","slf4j-api"),
+    libraryDependencies += "com.typesafe.akka" %% "akka-stream" % AkkaVersion exclude("org.slf4j","slf4j-api"),
+    libraryDependencies += "com.typesafe.akka" %% "akka-pki" % AkkaVersion exclude("org.slf4j","slf4j-api"),    
+    libraryDependencies += "com.typesafe.akka" %% "akka-http" % AkkaHttpVersion exclude("org.slf4j","slf4j-api"),    
+    libraryDependencies += "com.typesafe.akka" %% "akka-http-spray-json" % AkkaHttpVersion exclude("org.slf4j","slf4j-api"),
+    libraryDependencies += "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "10.0.0" exclude("org.slf4j","slf4j-api"),
+    libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % AkkaVersion exclude("org.slf4j","slf4j-api"),
     libraryDependencies += "org.playframework" %% "play-json" % "3.0.6" exclude("org.slf4j","slf4j-api"),     
     libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.36"
     //libraryDependencies += "io.jvm.uuid" %% "scala-uuid" % "0.3.1",
