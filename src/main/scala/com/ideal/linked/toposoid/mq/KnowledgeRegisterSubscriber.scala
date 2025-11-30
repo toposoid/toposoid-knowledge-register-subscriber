@@ -46,12 +46,15 @@ import play.api.libs.json.Json
 
 import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.duration._
 
 
 object KnowledgeRegisterSubscriber extends App with LazyLogging {
   val endpoint = "http://" + conf.getString("TOPOSOID_MQ_HOST") + ":" + conf.getString("TOPOSOID_MQ_PORT")
-  implicit val actorSystem:ActorSystem = ActorSystem("example")
-
+  implicit val actorSystem:ActorSystem = ActorSystem()
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   implicit val sqsClient:SqsAsyncClient = SqsAsyncClient
     .builder()
     .credentialsProvider(
@@ -66,188 +69,14 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     .build()
 
   val queueUrl = endpoint + "/" + conf.getString("TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE")
-  val settings = SqsSourceSettings()
+  val settings = SqsSourceSettings().withCloseOnEmptyReceive(false)
   //private val langPatternJP: Regex = "^ja_.*".r
   //private val langPatternEN: Regex = "^en_.*".r
   //private val langPatternSpecialSymbol1: Regex = "^@@_#[0-9]+".r
 
-  private def classifyKnowledgeBySentenceType(premiseList: List[AnalyzedPropositionPair], premiseLogicRelation: List[PropositionRelation],
-                                              claimList: List[AnalyzedPropositionPair], claimLogicRelation: List[PropositionRelation]): AnalyzedPropositionSet = {
-    //TODO:マイクロサービス化
-    //Claim側の情報から、Premiseの情報を追加する。
-    AnalyzedPropositionSet(premiseList = premiseList, premiseLogicRelation = premiseLogicRelation, claimList = claimList, claimLogicRelation = claimLogicRelation)
-  }
+  
 
-  private def getAnalyzedPropositionPairs(knowledgeForParsers:List[KnowledgeForParser], transversalState:TransversalState):List[AnalyzedPropositionPair] = {
-
-    knowledgeForParsers.foldLeft(List.empty[AnalyzedPropositionPair]) {
-      (acc, x) => {
-        //SentenceParserで解析
-        val knowledgeForParser: KnowledgeForParser = x
-        val inputSentenceForParser = InputSentenceForParser(List.empty[KnowledgeForParser], List(knowledgeForParser))
-        val json: String = Json.toJson(inputSentenceForParser).toString()
-
-        /*
-        val parserInfo: (String, String) = knowledgeForParser.knowledge.lang match {
-          case langPatternJP() => (conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_HOST"), conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_PORT"))
-          case langPatternEN() => (conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_HOST"), conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_PORT"))
-          case _ => throw new Exception("It is an invalid locale or an unsupported locale.")
-        }
-        val parseResult: String = ToposoidUtils.callComponent(json, parserInfo._1, parserInfo._2, "analyze", transversalState)
-        val analyzedSentenceObjects: AnalyzedSentenceObjects = Json.parse(parseResult).as[AnalyzedSentenceObjects]
-         */
-
-        val analyzedSentenceObjects:AnalyzedSentenceObjects = knowledgeForParser.knowledge.lang match{
-          case ToposoidUtils.langPatternJP() => {
-            val host = conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_HOST")
-            val port = conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_PORT")
-            val parseResult: String = ToposoidUtils.callComponent(json, host, port, "analyze", transversalState)
-            Json.parse(parseResult).as[AnalyzedSentenceObjects]
-          }
-          case ToposoidUtils.langPatternEN() => {
-            val host = conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_HOST")
-            val port = conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_PORT")
-            val parseResult: String = ToposoidUtils.callComponent(json, host, port, "analyze", transversalState)
-            Json.parse(parseResult).as[AnalyzedSentenceObjects]
-          }
-          case ToposoidUtils.langPatternSpecialSymbol1() => {
-            val aso = ToposoidUtils.parseSpecialSymbol(knowledgeForParser)
-            AnalyzedSentenceObjects(List(aso))
-          }
-          case _ => throw new Exception("It is an invalid locale or an unsupported locale.")
-        }
-
-        val analyzedPropositionPair: AnalyzedPropositionPair = AnalyzedPropositionPair(analyzedSentenceObjects, knowledgeForParser)
-        acc :+ analyzedPropositionPair
-      }
-    }
-  }
-
-  private def registerKnowledge(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser, transversalState:TransversalState) = Try {
-    val knowledgeSentenceSetForParserWithImage = KnowledgeSentenceSetForParser(
-      registKnowledgeImages(knowledgeSentenceSetForParser.premiseList, transversalState),
-      knowledgeSentenceSetForParser.premiseLogicRelation,
-      registKnowledgeImages(knowledgeSentenceSetForParser.claimList, transversalState),
-      knowledgeSentenceSetForParser.claimLogicRelation)
-
-    val premiseAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.premiseList, transversalState)
-    val claimAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.claimList, transversalState)
-
-    val classifiedKnowledgeBySentenceType = classifyKnowledgeBySentenceType(
-      premiseList = premiseAnalyzedPropositionPairs,
-      premiseLogicRelation = knowledgeSentenceSetForParser.premiseLogicRelation,
-      claimList = claimAnalyzedPropositionPairs,
-      claimLogicRelation = knowledgeSentenceSetForParser.claimLogicRelation
-    )
-    Sentence2Neo4jTransformer.createGraph(classifiedKnowledgeBySentenceType, transversalState)
-    FeatureVectorizer.createVector(knowledgeSentenceSetForParserWithImage, transversalState)
-  } match {
-    case Success(s) => s
-    case Failure(e) => throw e
-  }
-
-  private def registKnowledgeImages(knowledgeForParsers: List[KnowledgeForParser], transversalState: TransversalState): List[KnowledgeForParser] = Try {
-
-    knowledgeForParsers.foldLeft(List.empty[KnowledgeForParser]) {
-      (acc, x) => {
-        val knowledgeForImages: List[KnowledgeForImage] = x.knowledge.knowledgeForImages.map(y => {
-          val imageFeatureId = java.util.UUID.randomUUID().toString
-          val json: String = Json.toJson(KnowledgeForImage(imageFeatureId, y.imageReference)).toString()
-          val knowledgeForImageJson: String = ToposoidUtils.callComponent(json,
-            conf.getString("TOPOSOID_CONTENTS_ADMIN_HOST"),
-            conf.getString("TOPOSOID_CONTENTS_ADMIN_PORT"),
-            "registImage", transversalState)
-          val registContentResult: RegistContentResult = Json.parse(knowledgeForImageJson).as[RegistContentResult]
-          if (registContentResult.statusInfo.status.equals("ERROR")) throw new Exception(registContentResult.statusInfo.message)
-          registContentResult.knowledgeForImage
-        })
-        val knowledge = Knowledge(sentence = x.knowledge.sentence,
-          lang = x.knowledge.lang, extentInfoJson = x.knowledge.extentInfoJson,
-          isNegativeSentence = x.knowledge.isNegativeSentence, knowledgeForImages)
-        acc :+ KnowledgeForParser(x.propositionId, x.sentenceId, knowledge)
-      }
-    }
-  } match {
-    case Success(s) => s
-    case Failure(e) => throw e
-  }
-
-  private def deleteObject(knowledgeForParser: KnowledgeForParser, transversalState:TransversalState) = {
-    //Delete relationships
-    val query = s"MATCH (n)-[r]-() WHERE n.propositionId = '${knowledgeForParser.propositionId}' DELETE n,r"
-    val neo4JUtils = new Neo4JUtilsImpl()
-    neo4JUtils.executeQuery(query, transversalState)
-    //Delete orphan nodes
-    val query2 = s"MATCH (n) WHERE n.propositionId = '${knowledgeForParser.propositionId}' DELETE n"
-    neo4JUtils.executeQuery(query2, transversalState)
-    FeatureVectorizer.removeVectorByPropositionId(knowledgeForParser, transversalState)
-  }
-
-  private def rollback(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser, transversalState:TransversalState)= {
-    try {
-      knowledgeSentenceSetForParser.premiseList.map(deleteObject(_, transversalState))
-      knowledgeSentenceSetForParser.claimList.map(deleteObject(_, transversalState))
-      logger.info(ToposoidUtils.formatMessageForLogger("RollBack completed", transversalState.userId))
-    } catch {
-      case e: Exception => {
-        logger.error(ToposoidUtils.formatMessageForLogger("RollBack failed: " + Json.toJson(knowledgeSentenceSetForParser).toString(), transversalState.userId), e)
-      }
-    }
-  }
-
-  /*
-  private def convertKnowledge(knowledge:Knowledge):Knowledge = {
-    val knowledgeForImages: List[KnowledgeForImage] = knowledge.knowledgeForImages.map(y => {
-      val imageFeatureId = java.util.UUID.randomUUID().toString
-      KnowledgeForImage(imageFeatureId, y.imageReference)
-    })
-    Knowledge(knowledge.sentence, knowledge.lang, knowledge.extentInfoJson, knowledge.isNegativeSentence, knowledgeForImages)
-  }
-  private def assignId(knowledgeSentenceSet:KnowledgeSentenceSet):(KnowledgeSentenceSetForParser, String) = {
-    val propositionId = java.util.UUID.randomUUID().toString
-    val knowledgeForParserPremise: List[KnowledgeForParser] = knowledgeSentenceSet.premiseList.map(x => KnowledgeForParser(propositionId, java.util.UUID.randomUUID().toString, convertKnowledge(x)))
-    val knowledgeForParserClaim: List[KnowledgeForParser] = knowledgeSentenceSet.claimList.map(x => KnowledgeForParser(propositionId, java.util.UUID.randomUUID().toString, convertKnowledge(x)))
-
-    (KnowledgeSentenceSetForParser(
-      premiseList = knowledgeForParserPremise,
-      premiseLogicRelation = knowledgeSentenceSet.premiseLogicRelation,
-      claimList = knowledgeForParserClaim,
-      claimLogicRelation = knowledgeSentenceSet.claimLogicRelation
-    ), propositionId)
-  }
-  */
-  private def getSentence(knowledgeSentenceSet:KnowledgeSentenceSet):String = {
-    val premiseSentence = knowledgeSentenceSet.premiseList.foldLeft(""){
-      (acc, x) => {
-        acc + x.sentence
-      }
-    }
-    val claimSentence = knowledgeSentenceSet.claimList.foldLeft("") {
-      (acc, x) => {
-        acc + x.sentence
-      }
-    }
-    premiseSentence + claimSentence
-  }
-  private def add(stateId:Int, propositionId:String,  knowledgeRegistrationForManual: KnowledgeRegistrationForManual ):Unit = Try {
-    val knowledgeRegisterHistoryRecord = KnowledgeRegisterHistoryRecord(
-      stateId = stateId,
-      documentId = "",
-      sequentialNumber = 1,
-      propositionId = propositionId,
-      sentences = getSentence(knowledgeRegistrationForManual.knowledgeSentenceSet),
-      //json = ""
-      json = Json.toJson(knowledgeRegistrationForManual).toString()
-    )
-    val json = Json.toJson(knowledgeRegisterHistoryRecord).toString()
-    val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "addKnowledgeRegisterHistory", knowledgeRegistrationForManual.transversalState)
-    if (result.contains("Error")) throw new Exception(result)
-  } match {
-    case Success(s) => s
-    case Failure(e) => throw e
-  }
-
-  SqsSource(queueUrl, settings)
+  val messages = SqsSource(queueUrl, settings)
     .map(MessageAction.Delete(_))
     .via(SqsAckFlow(queueUrl))
     .runWith(Sink.foreach { (res: SqsAckResult) => {
@@ -255,12 +84,159 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
       val knowledgeRegistrationForManual: KnowledgeRegistrationForManual = Json.parse(body).as[KnowledgeRegistrationForManual]
       val (knowledgeSentenceSetForParser, propositionId) = assignId(knowledgeRegistrationForManual.knowledgeSentenceSet)
       val transversalState = knowledgeRegistrationForManual.transversalState
+
+      def classifyKnowledgeBySentenceType(premiseList: List[AnalyzedPropositionPair], premiseLogicRelation: List[PropositionRelation],
+                                                  claimList: List[AnalyzedPropositionPair], claimLogicRelation: List[PropositionRelation]): AnalyzedPropositionSet = {
+        //TODO:マイクロサービス化
+        //Claim側の情報から、Premiseの情報を追加する。
+        AnalyzedPropositionSet(premiseList = premiseList, premiseLogicRelation = premiseLogicRelation, claimList = claimList, claimLogicRelation = claimLogicRelation)
+      }
+
+      def getAnalyzedPropositionPairs(knowledgeForParsers:List[KnowledgeForParser], transversalState:TransversalState):List[AnalyzedPropositionPair] = {
+
+        knowledgeForParsers.foldLeft(List.empty[AnalyzedPropositionPair]) {
+          (acc, x) => {
+            //SentenceParserで解析
+            val knowledgeForParser: KnowledgeForParser = x
+            val inputSentenceForParser = InputSentenceForParser(List.empty[KnowledgeForParser], List(knowledgeForParser))
+            val json: String = Json.toJson(inputSentenceForParser).toString()
+            val analyzedSentenceObjects:AnalyzedSentenceObjects = knowledgeForParser.knowledge.lang match{
+              case ToposoidUtils.langPatternJP() => {
+                val host = conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_HOST")
+                val port = conf.getString("TOPOSOID_SENTENCE_PARSER_JP_WEB_PORT")
+                val parseResult: String = ToposoidUtils.callComponent(json, host, port, "analyze", transversalState)
+                Json.parse(parseResult).as[AnalyzedSentenceObjects]
+              }
+              case ToposoidUtils.langPatternEN() => {
+                val host = conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_HOST")
+                val port = conf.getString("TOPOSOID_SENTENCE_PARSER_EN_WEB_PORT")
+                val parseResult: String = ToposoidUtils.callComponent(json, host, port, "analyze", transversalState)
+                Json.parse(parseResult).as[AnalyzedSentenceObjects]
+              }
+              case ToposoidUtils.langPatternSpecialSymbol1() => {
+                val aso = ToposoidUtils.parseSpecialSymbol(knowledgeForParser)
+                AnalyzedSentenceObjects(List(aso))
+              }
+              case _ => throw new Exception("It is an invalid locale or an unsupported locale.")
+            }
+
+            val analyzedPropositionPair: AnalyzedPropositionPair = AnalyzedPropositionPair(analyzedSentenceObjects, knowledgeForParser)
+            acc :+ analyzedPropositionPair
+          }
+        }
+      }
+
+      def registerKnowledge(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser, transversalState:TransversalState) = Try {
+        val knowledgeSentenceSetForParserWithImage = KnowledgeSentenceSetForParser(
+          registKnowledgeImages(knowledgeSentenceSetForParser.premiseList, transversalState),
+          knowledgeSentenceSetForParser.premiseLogicRelation,
+          registKnowledgeImages(knowledgeSentenceSetForParser.claimList, transversalState),
+          knowledgeSentenceSetForParser.claimLogicRelation)
+
+        val premiseAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.premiseList, transversalState)
+        val claimAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.claimList, transversalState)
+
+        val classifiedKnowledgeBySentenceType = classifyKnowledgeBySentenceType(
+          premiseList = premiseAnalyzedPropositionPairs,
+          premiseLogicRelation = knowledgeSentenceSetForParser.premiseLogicRelation,
+          claimList = claimAnalyzedPropositionPairs,
+          claimLogicRelation = knowledgeSentenceSetForParser.claimLogicRelation
+        )
+        Sentence2Neo4jTransformer.createGraph(classifiedKnowledgeBySentenceType, transversalState)
+        FeatureVectorizer.createVector(knowledgeSentenceSetForParserWithImage, transversalState)
+      } match {
+        case Success(s) => s
+        case Failure(e) => throw e
+      }
+
+      def registKnowledgeImages(knowledgeForParsers: List[KnowledgeForParser], transversalState: TransversalState): List[KnowledgeForParser] = Try {
+
+        knowledgeForParsers.foldLeft(List.empty[KnowledgeForParser]) {
+          (acc, x) => {
+            val knowledgeForImages: List[KnowledgeForImage] = x.knowledge.knowledgeForImages.map(y => {
+              val imageFeatureId = java.util.UUID.randomUUID().toString
+              val json: String = Json.toJson(KnowledgeForImage(imageFeatureId, y.imageReference)).toString()
+              val knowledgeForImageJson: String = ToposoidUtils.callComponent(json,
+                conf.getString("TOPOSOID_CONTENTS_ADMIN_HOST"),
+                conf.getString("TOPOSOID_CONTENTS_ADMIN_PORT"),
+                "registImage", transversalState)
+              val registContentResult: RegistContentResult = Json.parse(knowledgeForImageJson).as[RegistContentResult]
+              if (registContentResult.statusInfo.status.equals("ERROR")) throw new Exception(registContentResult.statusInfo.message)
+              registContentResult.knowledgeForImage
+            })
+            val knowledge = Knowledge(sentence = x.knowledge.sentence,
+              lang = x.knowledge.lang, extentInfoJson = x.knowledge.extentInfoJson,
+              isNegativeSentence = x.knowledge.isNegativeSentence, knowledgeForImages)
+            acc :+ KnowledgeForParser(x.propositionId, x.sentenceId, knowledge)
+          }
+        }
+      } match {
+        case Success(s) => s
+        case Failure(e) => throw e
+      }
+
+      def deleteObject(knowledgeForParser: KnowledgeForParser, transversalState:TransversalState) = {
+        //Delete relationships
+        val query = s"MATCH (n)-[r]-() WHERE n.propositionId = '${knowledgeForParser.propositionId}' DELETE n,r"
+        val neo4JUtils = new Neo4JUtilsImpl()
+        neo4JUtils.executeQuery(query, transversalState)
+        //Delete orphan nodes
+        val query2 = s"MATCH (n) WHERE n.propositionId = '${knowledgeForParser.propositionId}' DELETE n"
+        neo4JUtils.executeQuery(query2, transversalState)
+        FeatureVectorizer.removeVectorByPropositionId(knowledgeForParser, transversalState)
+      }
+
+      def rollback(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser, transversalState:TransversalState)= {
+        try {
+          knowledgeSentenceSetForParser.premiseList.map(deleteObject(_, transversalState))
+          knowledgeSentenceSetForParser.claimList.map(deleteObject(_, transversalState))
+          logger.info(ToposoidUtils.formatMessageForLogger("RollBack completed", transversalState.userId))
+        } catch {
+          case e: Exception => {
+            logger.error(ToposoidUtils.formatMessageForLogger("RollBack failed: " + Json.toJson(knowledgeSentenceSetForParser).toString(), transversalState.userId), e)
+          }
+        }
+      }
+
+      def getSentence(knowledgeSentenceSet:KnowledgeSentenceSet):String = {
+        val premiseSentence = knowledgeSentenceSet.premiseList.foldLeft(""){
+          (acc, x) => {
+            acc + x.sentence
+          }
+        }
+        val claimSentence = knowledgeSentenceSet.claimList.foldLeft("") {
+          (acc, x) => {
+            acc + x.sentence
+          }
+        }
+        premiseSentence + claimSentence
+      }
+      def add(stateId:Int, propositionId:String,  knowledgeRegistrationForManual: KnowledgeRegistrationForManual ):Unit = Try {
+        val knowledgeRegisterHistoryRecord = KnowledgeRegisterHistoryRecord(
+          stateId = stateId,
+          documentId = "",
+          sequentialNumber = 1,
+          propositionId = propositionId,
+          sentences = getSentence(knowledgeRegistrationForManual.knowledgeSentenceSet),
+          //json = ""
+          json = Json.toJson(knowledgeRegistrationForManual).toString()
+        )
+        val json = Json.toJson(knowledgeRegisterHistoryRecord).toString()
+        val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "addKnowledgeRegisterHistory", knowledgeRegistrationForManual.transversalState)
+        if (result.contains("Error")) throw new Exception(result)
+      } match {
+        case Success(s) => s
+        case Failure(e) => throw e
+      }        
+      
       try {
+        print(body)
         registerKnowledge(knowledgeSentenceSetForParser, transversalState)
         add(1, propositionId, knowledgeRegistrationForManual)
         logger.info(ToposoidUtils.formatMessageForLogger("Registration completed", transversalState.userId))
       } catch {
         case e: Exception => {
+          print(e)
           logger.error(ToposoidUtils.formatMessageForLogger(e.toString(), transversalState.userId), e)
           rollback(knowledgeSentenceSetForParser, transversalState)
           add(2, propositionId, knowledgeRegistrationForManual)
@@ -268,28 +244,8 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
       }
     }})
 
-
-  /*
-  SqsSource(queueUrl, settings)
-    .map(MessageAction.Delete(_))
-    .via(SqsAckFlow(queueUrl))
-    .runWith(Sink.foreach { res: SqsAckResult =>
-      val body = res.messageAction.message.body
-      val knowledgeRegistration: KnowledgeRegistration = Json.parse(body).as[KnowledgeRegistration]
-      val knowledgeSentenceSetForParser = assignId(knowledgeRegistration.knowledgeSentenceSet)
-      val transversalState = knowledgeRegistration.transversalState
-      try {
-        registerKnowledge(knowledgeSentenceSetForParser, transversalState)
-        add(1, knowledgeRegistration, knowledgeSentenceSetForParser)
-        logger.info(ToposoidUtils.formatMessageForLogger("Registration completed", transversalState.userId))
-      }catch {
-        case e: Exception => {
-          logger.error(ToposoidUtils.formatMessageForLogger(e.toString(), transversalState.userId), e)
-          rollback(knowledgeSentenceSetForParser, transversalState)
-          add(2, knowledgeRegistration, knowledgeSentenceSetForParser)
-        }
-      }
-    })
-  */
+    Await.result(messages, Duration.Inf)    
+    
+    messages.onComplete(_ => actorSystem.terminate())
 }
 
