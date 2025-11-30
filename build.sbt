@@ -8,12 +8,12 @@ ThisBuild / organization     := "com.ideal.linked"
 
 val AkkaVersion = "2.10.11"
 val AkkaHttpVersion = "10.7.3"
-val AkkaToken = sys.env.get("TOPOSOID_AKKA_TOKEN").get
+//val AkkaToken = sys.env.get("TOPOSOID_AKKA_TOKEN").get
 
 lazy val root = (project in file("."))
   .settings(
     name := "toposoid-knowledge-register-subscriber",
-    resolvers += Resolver.mavenLocal,
+    resolvers += Resolver.mavenLocal,    
     mainClass := Some("com.ideal.linked.toposoid.mq.KnowledgeRegisterSubscriber"),
     libraryDependencies += scalaTest % Test,
     libraryDependencies += "com.ideal.linked" %% "toposoid-sentence-transformer-neo4j" % "0.7-SNAPSHOT" exclude("org.slf4j","slf4j-api"),
