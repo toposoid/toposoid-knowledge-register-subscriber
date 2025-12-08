@@ -40,7 +40,7 @@ import com.ideal.linked.toposoid.protocol.model.base.AnalyzedSentenceObjects
 import com.ideal.linked.toposoid.protocol.model.parser.{InputSentenceForParser, KnowledgeForParser, KnowledgeSentenceSetForParser}
 import com.ideal.linked.toposoid.sentence.transformer.neo4j.{AnalyzedPropositionPair, AnalyzedPropositionSet, Sentence2Neo4jTransformer}
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
-import com.typesafe.scalalogging.LazyLogging
+//import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json.Json
 //import io.jvm.uuid.UUID
 
@@ -49,9 +49,13 @@ import scala.util.{Failure, Success, Try}
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 
-object KnowledgeRegisterSubscriber extends App with LazyLogging {
+
+object KnowledgeRegisterSubscriber extends App {
+//object KnowledgeRegisterSubscriber extends App with LazyLogging{  処理が途中で止まってしまう現象あり
   val endpoint = "http://" + conf.getString("TOPOSOID_MQ_HOST") + ":" + conf.getString("TOPOSOID_MQ_PORT")
   implicit val actorSystem:ActorSystem = ActorSystem()
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
@@ -80,15 +84,16 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
     .map(MessageAction.Delete(_))
     .via(SqsAckFlow(queueUrl))
     .runWith(Sink.foreach { (res: SqsAckResult) => {
+      val logger = Logger(LoggerFactory.getLogger(this.getClass))
       val body = res.messageAction.message.body
       val knowledgeRegistrationForManual: KnowledgeRegistrationForManual = Json.parse(body).as[KnowledgeRegistrationForManual]
       val (knowledgeSentenceSetForParser, propositionId) = assignId(knowledgeRegistrationForManual.knowledgeSentenceSet)
       val transversalState = knowledgeRegistrationForManual.transversalState
-
+      
       def classifyKnowledgeBySentenceType(premiseList: List[AnalyzedPropositionPair], premiseLogicRelation: List[PropositionRelation],
                                                   claimList: List[AnalyzedPropositionPair], claimLogicRelation: List[PropositionRelation]): AnalyzedPropositionSet = {
         //TODO:マイクロサービス化
-        //Claim側の情報から、Premiseの情報を追加する。
+        //Claim側の情報から、Premiseの情報を追加する。        
         AnalyzedPropositionSet(premiseList = premiseList, premiseLogicRelation = premiseLogicRelation, claimList = claimList, claimLogicRelation = claimLogicRelation)
       }
 
@@ -229,21 +234,20 @@ object KnowledgeRegisterSubscriber extends App with LazyLogging {
         case Failure(e) => throw e
       }        
       
+      
       try {
-        print(body)
+        logger.info(ToposoidUtils.formatMessageForLogger(body, transversalState.userId))
         registerKnowledge(knowledgeSentenceSetForParser, transversalState)
         add(1, propositionId, knowledgeRegistrationForManual)
-        logger.info(ToposoidUtils.formatMessageForLogger("Registration completed", transversalState.userId))
+        logger.info(ToposoidUtils.formatMessageForLogger("Registration completed", transversalState.userId))        
       } catch {
         case e: Exception => {
-          print(e)
           logger.error(ToposoidUtils.formatMessageForLogger(e.toString(), transversalState.userId), e)
           rollback(knowledgeSentenceSetForParser, transversalState)
           add(2, propositionId, knowledgeRegistrationForManual)
         }
       }
     }})
-
     Await.result(messages, Duration.Inf)    
     
     messages.onComplete(_ => actorSystem.terminate())
