@@ -18,17 +18,17 @@
 package com.ideal.linked.toposoid.mq
 
 import java.net.URI
-import akka.actor.ActorSystem
-import akka.stream.alpakka.sqs.SqsSourceSettings
-import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
-import akka.stream.scaladsl.Sink
-import com.github.matsluni.akkahttpspi.AkkaHttpClient
+//import akka.actor.ActorSystem
+//import akka.stream.alpakka.sqs.SqsSourceSettings
+//import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
+//import akka.stream.scaladsl.Sink
+//import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
-import akka.stream.alpakka.sqs.MessageAction
-import akka.stream.alpakka.sqs.SqsAckResult
+//import akka.stream.alpakka.sqs.MessageAction
+//import akka.stream.alpakka.sqs.SqsAckResult
 import com.ideal.linked.common.DeploymentConverter.conf
 import com.ideal.linked.toposoid.common.ToposoidUtils.{assignId, callComponent}
 import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
@@ -51,14 +51,33 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
-
+import org.apache.pekko.stream.connectors.awsspi.PekkoHttpClient
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.connectors.sqs.SqsSourceSettings
+import org.apache.pekko.stream.connectors.sqs.scaladsl.SqsSource
+import scala.collection.immutable
+import org.apache.pekko.stream.connectors.sqs.MessageAction
+import org.apache.pekko.stream.connectors.sqs.scaladsl.SqsAckFlow
+import org.apache.pekko.stream.scaladsl.Sink
+import org.apache.pekko.stream.connectors.sqs.SqsAckResult
 
 object KnowledgeRegisterSubscriber extends App {
 //object KnowledgeRegisterSubscriber extends App with LazyLogging{  処理が途中で止まってしまう現象あり
   val endpoint = "http://" + conf.getString("TOPOSOID_MQ_HOST") + ":" + conf.getString("TOPOSOID_MQ_PORT")
-  implicit val actorSystem:ActorSystem = ActorSystem()
+  implicit val actorSystem:ActorSystem = ActorSystem.create()
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  implicit val credentialsProvider:StaticCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create("x", "x"))
+  implicit val sqsClient:SqsAsyncClient = SqsAsyncClient
+    .builder()
+    .credentialsProvider(credentialsProvider)   
+    .endpointOverride(URI.create(endpoint))   
+    .region(Region.AP_NORTHEAST_1)
+    .httpClient(PekkoHttpClient.builder().withActorSystem(actorSystem).build())
+    // Possibility to configure the retry policy
+    // see https://pekko.apache.org/docs/pekko-connectors/current/aws-shared-configuration.html
+    // .overrideConfiguration(...)
+    .build()
+  /*
   implicit val sqsClient:SqsAsyncClient = SqsAsyncClient
     .builder()
     .credentialsProvider(
@@ -68,10 +87,11 @@ object KnowledgeRegisterSubscriber extends App {
     )
     .endpointOverride(URI.create(endpoint)) // (2)
     .region(Region.AP_NORTHEAST_1)
-    .httpClient(AkkaHttpClient.builder()
-      .withActorSystem(actorSystem).build())
+    //.httpClient(AkkaHttpClient.builder()
+    .httpClient(PekkoHttpClient.builder().withActorSystem(actorSystem).build())
+    .withActorSystem(actorSystem).build())
     .build()
-
+  */
   val queueUrl = endpoint + "/" + conf.getString("TOPOSOID_MQ_KNOWLEDGE_REGISTER_QUENE")
   val settings = SqsSourceSettings().withCloseOnEmptyReceive(false)
   //private val langPatternJP: Regex = "^ja_.*".r

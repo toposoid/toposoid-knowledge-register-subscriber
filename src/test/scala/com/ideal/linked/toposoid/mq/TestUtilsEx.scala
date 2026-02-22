@@ -20,7 +20,7 @@ package com.ideal.linked.toposoid.mq
 import akka.actor.ActorSystem
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import com.ideal.linked.common.DeploymentConverter.conf
-import com.ideal.linked.toposoid.common.{FeatureType, IMAGE, Neo4JUtilsImpl, SENTENCE, ToposoidUtils, TransversalState}
+import com.ideal.linked.toposoid.common.{FeatureType,Neo4JUtilsImpl,ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.FeatureVectorIdentifier
 import com.ideal.linked.toposoid.knowledgebase.image.model.SingleImage
 import com.ideal.linked.toposoid.knowledgebase.nlp.model.FeatureVector
@@ -48,9 +48,9 @@ object TestUtilsEx {
 
    def deleteFeatureVector(featureVectorIdentifier: FeatureVectorIdentifier, featureType: FeatureType, transversalState:TransversalState): Unit = {
     val json: String = Json.toJson(featureVectorIdentifier).toString()
-    if (featureType.equals(SENTENCE)) {
+    if (featureType.equals(FeatureType.SENTENCE)) {
       ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
-    } else if (featureType.equals(IMAGE)) {
+    } else if (featureType.equals(FeatureType.IMAGE)) {
       ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
     }
   }

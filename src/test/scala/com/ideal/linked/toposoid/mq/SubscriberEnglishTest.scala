@@ -19,7 +19,7 @@ package com.ideal.linked.toposoid.mq
 
 import com.ideal.linked.common.DeploymentConverter.conf
 import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual, MqUtils}
-import com.ideal.linked.toposoid.common.{IMAGE, SENTENCE, ToposoidUtils, TransversalState}
+import com.ideal.linked.toposoid.common.{FeatureType, ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.{FeatureVectorSearchResult, SingleFeatureVectorForSearch}
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{ImageReference, Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation, Reference}
 import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
@@ -114,7 +114,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
       val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
       val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
       assert(result.ids.size > 0 && result.similarities.head > 0.999)
-      result.ids.map(x => TestUtilsEx.deleteFeatureVector(x, SENTENCE, transversalState))
+      result.ids.map(x => TestUtilsEx.deleteFeatureVector(x, FeatureType.SENTENCE, transversalState))
 
       knowledge.knowledgeForImages.foreach(x => {
         val url: String = x.imageReference.reference.surface match {
@@ -128,7 +128,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
         val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
         val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
         assert(result.ids.size > 0 && result.similarities.head > 0.999)
-        result.ids.map(x => TestUtilsEx.deleteFeatureVector(x, IMAGE, transversalState))
+        result.ids.map(x => TestUtilsEx.deleteFeatureVector(x, FeatureType.IMAGE, transversalState))
       })
 
       val propositionIds = result.ids.map(_.superiorId).distinct
