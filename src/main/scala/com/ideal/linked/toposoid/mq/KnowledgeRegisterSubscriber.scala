@@ -18,17 +18,10 @@
 package com.ideal.linked.toposoid.mq
 
 import java.net.URI
-//import akka.actor.ActorSystem
-//import akka.stream.alpakka.sqs.SqsSourceSettings
-//import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
-//import akka.stream.scaladsl.Sink
-//import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
-//import akka.stream.alpakka.sqs.MessageAction
-//import akka.stream.alpakka.sqs.SqsAckResult
 import com.ideal.linked.common.DeploymentConverter.conf
 import com.ideal.linked.toposoid.common.ToposoidUtils.{assignId, callComponent}
 import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
