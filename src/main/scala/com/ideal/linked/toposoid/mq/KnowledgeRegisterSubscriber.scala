@@ -18,25 +18,18 @@
 package com.ideal.linked.toposoid.mq
 
 import java.net.URI
-//import akka.actor.ActorSystem
-//import akka.stream.alpakka.sqs.SqsSourceSettings
-//import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
-//import akka.stream.scaladsl.Sink
-//import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
-//import akka.stream.alpakka.sqs.MessageAction
-//import akka.stream.alpakka.sqs.SqsAckResult
 import com.ideal.linked.common.DeploymentConverter.conf
 import com.ideal.linked.toposoid.common.ToposoidUtils.{assignId, callComponent}
 import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
-import com.ideal.linked.toposoid.common.{Neo4JUtilsImpl, ToposoidUtils, TransversalState}
+import com.ideal.linked.toposoid.common.{Neo4JUtilsImpl, ToposoidUtils, TransversalState, ActionModeType}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.RegistContentResult
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation}
 import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
-import com.ideal.linked.toposoid.protocol.model.base.AnalyzedSentenceObjects
+import com.ideal.linked.toposoid.protocol.model.base.{AnalyzedSentenceObjects, DeductionConfiguration}
 import com.ideal.linked.toposoid.protocol.model.parser.{InputSentenceForParser, KnowledgeForParser, KnowledgeSentenceSetForParser}
 import com.ideal.linked.toposoid.sentence.transformer.neo4j.{AnalyzedPropositionPair, AnalyzedPropositionSet, Sentence2Neo4jTransformer}
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
@@ -123,7 +116,7 @@ object KnowledgeRegisterSubscriber extends App {
           (acc, x) => {
             //SentenceParserで解析
             val knowledgeForParser: KnowledgeForParser = x
-            val inputSentenceForParser = InputSentenceForParser(List.empty[KnowledgeForParser], List(knowledgeForParser))
+            val inputSentenceForParser = InputSentenceForParser(List.empty[KnowledgeForParser], List(knowledgeForParser), ActionModeType.REGISTRATION_MODE.index)
             val json: String = Json.toJson(inputSentenceForParser).toString()
             val analyzedSentenceObjects:AnalyzedSentenceObjects = knowledgeForParser.knowledge.lang match{
               case ToposoidUtils.langPatternJP() => {
@@ -140,7 +133,8 @@ object KnowledgeRegisterSubscriber extends App {
               }
               case ToposoidUtils.langPatternSpecialSymbol1() => {
                 val aso = ToposoidUtils.parseSpecialSymbol(knowledgeForParser)
-                AnalyzedSentenceObjects(List(aso))
+                val deductionCofiguration = DeductionConfiguration(inputSentenceForParser.actionModeType, "", Map.empty[String,String]) 
+                AnalyzedSentenceObjects(List(aso), deductionCofiguration)
               }
               case _ => throw new Exception("It is an invalid locale or an unsupported locale.")
             }

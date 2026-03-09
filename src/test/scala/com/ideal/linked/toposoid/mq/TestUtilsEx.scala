@@ -17,8 +17,8 @@
 
 package com.ideal.linked.toposoid.mq
 
-import akka.actor.ActorSystem
-import com.github.matsluni.akkahttpspi.AkkaHttpClient
+//import akka.actor.ActorSystem
+//import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import com.ideal.linked.common.DeploymentConverter.conf
 import com.ideal.linked.toposoid.common.{FeatureType,Neo4JUtilsImpl,ToposoidUtils, TransversalState}
 import com.ideal.linked.toposoid.knowledgebase.featurevector.model.FeatureVectorIdentifier

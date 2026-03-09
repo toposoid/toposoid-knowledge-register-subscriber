@@ -26,15 +26,8 @@ lazy val root = (project in file("."))
     libraryDependencies += "org.apache.pekko" %% "pekko-actor-typed" % PekkoVersion exclude("org.slf4j","slf4j-api"),
     libraryDependencies += "org.apache.pekko" %% "pekko-serialization-jackson" % PekkoVersion exclude("org.slf4j","slf4j-api"),
     libraryDependencies += "org.apache.pekko" %% "pekko-slf4j" % PekkoVersion exclude("org.slf4j","slf4j-api"),
-    //libraryDependencies += "com.typesafe.akka" %% "akka-stream" % AkkaVersion exclude("org.slf4j","slf4j-api"),
-    //libraryDependencies += "com.typesafe.akka" %% "akka-pki" % AkkaVersion exclude("org.slf4j","slf4j-api"),    
-    //libraryDependencies += "com.typesafe.akka" %% "akka-http" % AkkaHttpVersion exclude("org.slf4j","slf4j-api"),    
-    //libraryDependencies += "com.typesafe.akka" %% "akka-http-spray-json" % AkkaHttpVersion exclude("org.slf4j","slf4j-api"),
-    //libraryDependencies += "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "10.0.0" exclude("org.slf4j","slf4j-api"),
-    //libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % AkkaVersion exclude("org.slf4j","slf4j-api"),
     libraryDependencies += "org.playframework" %% "play-json" % "3.0.6" exclude("org.slf4j","slf4j-api"),     
     libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.36",
-    //libraryDependencies += "io.jvm.uuid" %% "scala-uuid" % "0.3.1",
   )
 
 organizationName := "Linked Ideal LLC.[https://linked-ideal.com/]"
