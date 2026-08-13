@@ -63,7 +63,7 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
 
     val knowledge1 = Knowledge(sentence = "これはテストの前提1です。", lang = "ja_JP", extentInfoJson = "{}")
     val knowledge2 = Knowledge(sentence = "これはテストの前提2です。", lang = "ja_JP", extentInfoJson = "{}")
-    val reference3 = Reference(url = "", surface = "猫が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
+    val reference3 = Reference(url = "", surface = "猫が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "src/test/resources/IMG_TEST.jpg", metaInformations = List.empty[String])
     val reference3a = Reference(url = "", surface = "データが", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "src/test/resources/JAPANESE_TEST_TABLE.tsv", metaInformations = List.empty[String])
     
     val imageReference3 = ImageReference(reference = reference3, x = 27, y = 41, width = 287, height = 435)
@@ -104,7 +104,7 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val result1: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (n:ClaimNode{surface: 'NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10'}) RETURN n", transversalState)
     assert(result1.records.size == 1)
 
-    val result2: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/val2017/000000039769.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'猫が'}) RETURN s, t", transversalState)
+    val result2: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'src/test/resources/IMG_TEST.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'猫が'}) RETURN s, t", transversalState)
     assert(result2.records.size == 1)
     val urlCat = result2.records.head.head.value.featureNode.get.url
     val result3: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/train2017/000000428746.jpg'})-[:ImageEdge]->(t:ClaimNode{surface:'犬が'}) RETURN s, t", transversalState)

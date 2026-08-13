@@ -58,7 +58,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
 
     val knowledge1 = Knowledge(sentence = "This is premise-1.", lang = "en_US", extentInfoJson = "{}")
     val knowledge2 = Knowledge(sentence = "This is premise-2.", lang = "en_US", extentInfoJson = "{}")
-    val reference3 = Reference(url = "", surface = "cats", surfaceIndex = 3, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
+    val reference3 = Reference(url = "", surface = "cats", surfaceIndex = 3, isWholeSentence = false, originalUrlOrReference = "src/test/resources/IMG_TEST.jpg", metaInformations = List.empty[String])
     val imageReference3 = ImageReference(reference = reference3, x = 27, y = 41, width = 287, height = 435)
     val knowledgeForImages3 = uploadImage(KnowledgeForImage(id = "", imageReference = imageReference3), transversalState)
     val knowledge3 = Knowledge(sentence = "There are two cats.", lang = "en_US", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages3))
@@ -109,7 +109,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     assert(result5.records.size == 1)
 
 
-    val queryResult4: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/val2017/000000039769.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'cats'}) RETURN s, t", transversalState)
+    val queryResult4: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'src/test/resources/IMG_TEST.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'cats'}) RETURN s, t", transversalState)
     assert(queryResult4.records.size == 1)
     val urlCat = queryResult4.records.head.head.value.featureNode.get.url
 
