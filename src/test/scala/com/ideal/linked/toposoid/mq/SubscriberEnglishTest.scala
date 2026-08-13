@@ -29,6 +29,7 @@ import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import play.api.libs.json.Json
+import com.ideal.linked.toposoid.mq.TestUtilsEx.uploadImage
 
 class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeAndAfterAll {
 
@@ -56,7 +57,7 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     val knowledge2 = Knowledge(sentence = "This is premise-2.", lang = "en_US", extentInfoJson = "{}")
     val reference3 = Reference(url = "", surface = "cats", surfaceIndex = 3, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
     val imageReference3 = ImageReference(reference = reference3, x = 27, y = 41, width = 287, height = 435)
-    val knowledgeForImages3 = KnowledgeForImage(id = "", imageReference = imageReference3)
+    val knowledgeForImages3 = uploadImage(KnowledgeForImage(id = "", imageReference = imageReference3), transversalState)
     val knowledge3 = Knowledge(sentence = "There are two cats.", lang = "en_US", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages3))
 
     val knowledge4 = Knowledge(sentence = "This is claim-1.", lang = "en_US", extentInfoJson = "{}")
@@ -64,10 +65,10 @@ class SubscriberEnglishTest extends AnyFlatSpec with BeforeAndAfter with BeforeA
     val reference6 = Reference(url = "", surface = "dog", surfaceIndex = 3, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
     val reference6a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "https://farm8.staticflickr.com/7103/7210629614_5a388d9a9c_z.jpg", metaInformations = List.empty[String])
     val imageReference6 = ImageReference(reference = reference6, x = 435, y = 227, width = 91, height = 69)
-    val knowledgeForImages6 = KnowledgeForImage(id = "", imageReference = imageReference6)
+    val knowledgeForImages6 = uploadImage(KnowledgeForImage(id = "", imageReference = imageReference6), transversalState)
     val knowledge6 = Knowledge(sentence = "There is a dog", lang = "en_US", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6))
     val imageReference6a = ImageReference(reference = reference6a, x = 23, y = 25, width = 601, height = 341)
-    val knowledgeForImages6a = KnowledgeForImage(id = "", imageReference = imageReference6a)
+    val knowledgeForImages6a = uploadImage(KnowledgeForImage(id = "", imageReference = imageReference6a), transversalState)
     val knowledge6a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10", lang = "@@_#1", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6a))
 
     val knowledgeSentenceSet = KnowledgeSentenceSet(

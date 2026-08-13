@@ -26,7 +26,6 @@ import com.ideal.linked.common.DeploymentConverter.conf
 import com.ideal.linked.toposoid.common.ToposoidUtils.{assignId, callComponent}
 import com.ideal.linked.toposoid.common.mq.{KnowledgeRegistration, KnowledgeRegistrationForManual}
 import com.ideal.linked.toposoid.common.{Neo4JUtilsImpl, ToposoidUtils, TransversalState, ActionModeType}
-import com.ideal.linked.toposoid.knowledgebase.featurevector.model.RegistContentResult
 import com.ideal.linked.toposoid.knowledgebase.regist.model.{Knowledge, KnowledgeForImage, KnowledgeSentenceSet, PropositionRelation}
 import com.ideal.linked.toposoid.knowledgebase.regist.rdb.model.KnowledgeRegisterHistoryRecord
 import com.ideal.linked.toposoid.protocol.model.base.{AnalyzedSentenceObjects, DeductionConfiguration}
@@ -53,6 +52,9 @@ import org.apache.pekko.stream.connectors.sqs.MessageAction
 import org.apache.pekko.stream.connectors.sqs.scaladsl.SqsAckFlow
 import org.apache.pekko.stream.scaladsl.Sink
 import org.apache.pekko.stream.connectors.sqs.SqsAckResult
+import com.ideal.linked.toposoid.knowledgebase.image.model.RegisteredImageContentResult
+import com.ideal.linked.toposoid.knowledgebase.table.model.RegisteredTableContentResult
+import com.ideal.linked.toposoid.knowledgebase.regist.model.KnowledgeForTable
 
 object KnowledgeRegisterSubscriber extends App {
 //object KnowledgeRegisterSubscriber extends App with LazyLogging{  処理が途中で止まってしまう現象あり
@@ -146,10 +148,11 @@ object KnowledgeRegisterSubscriber extends App {
       }
 
       def registerKnowledge(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser, transversalState:TransversalState) = Try {
+        
         val knowledgeSentenceSetForParserWithImage = KnowledgeSentenceSetForParser(
-          registKnowledgeImages(knowledgeSentenceSetForParser.premiseList, transversalState),
+          registerKnowledgeTables(registerKnowledgeImages(knowledgeSentenceSetForParser.premiseList, transversalState), transversalState),
           knowledgeSentenceSetForParser.premiseLogicRelation,
-          registKnowledgeImages(knowledgeSentenceSetForParser.claimList, transversalState),
+          registerKnowledgeTables(registerKnowledgeImages(knowledgeSentenceSetForParser.claimList, transversalState), transversalState),
           knowledgeSentenceSetForParser.claimLogicRelation)
 
         val premiseAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.premiseList, transversalState)
@@ -168,8 +171,7 @@ object KnowledgeRegisterSubscriber extends App {
         case Failure(e) => throw e
       }
 
-      def registKnowledgeImages(knowledgeForParsers: List[KnowledgeForParser], transversalState: TransversalState): List[KnowledgeForParser] = Try {
-
+      def registerKnowledgeImages(knowledgeForParsers: List[KnowledgeForParser], transversalState: TransversalState): List[KnowledgeForParser] = Try {
         knowledgeForParsers.foldLeft(List.empty[KnowledgeForParser]) {
           (acc, x) => {
             val knowledgeForImages: List[KnowledgeForImage] = x.knowledge.knowledgeForImages.map(y => {
@@ -178,14 +180,39 @@ object KnowledgeRegisterSubscriber extends App {
               val knowledgeForImageJson: String = ToposoidUtils.callComponent(json,
                 conf.getString("TOPOSOID_CONTENTS_ADMIN_HOST"),
                 conf.getString("TOPOSOID_CONTENTS_ADMIN_PORT"),
-                "registImage", transversalState)
-              val registContentResult: RegistContentResult = Json.parse(knowledgeForImageJson).as[RegistContentResult]
-              if (registContentResult.statusInfo.status.equals("ERROR")) throw new Exception(registContentResult.statusInfo.message)
-              registContentResult.knowledgeForImage
+                "registerImage", transversalState)
+              val registeredContentResult: RegisteredImageContentResult = Json.parse(knowledgeForImageJson).as[RegisteredImageContentResult]
+              if (registeredContentResult.statusInfo.status.equals("ERROR")) throw new Exception(registeredContentResult.statusInfo.message)
+              registeredContentResult.knowledgeForImage
             })
             val knowledge = Knowledge(sentence = x.knowledge.sentence,
               lang = x.knowledge.lang, extentInfoJson = x.knowledge.extentInfoJson,
-              isNegativeSentence = x.knowledge.isNegativeSentence, knowledgeForImages)
+              isNegativeSentence = x.knowledge.isNegativeSentence, knowledgeForImages=knowledgeForImages, knowledgeForTables=x.knowledge.knowledgeForTables )
+            acc :+ KnowledgeForParser(x.propositionId, x.sentenceId, knowledge)
+          }
+        }
+      } match {
+        case Success(s) => s
+        case Failure(e) => throw e
+      }
+
+      def registerKnowledgeTables(knowledgeForParsers: List[KnowledgeForParser], transversalState: TransversalState): List[KnowledgeForParser] = Try {
+        knowledgeForParsers.foldLeft(List.empty[KnowledgeForParser]) {
+          (acc, x) => {
+            val knowledgeForTables: List[KnowledgeForTable] = x.knowledge.knowledgeForTables.map(y => {
+              val tableFeatureId = java.util.UUID.randomUUID().toString
+              val json: String = Json.toJson(KnowledgeForTable(tableFeatureId, y.tableReference)).toString()
+              val knowledgeForTableJson: String = ToposoidUtils.callComponent(json,
+                conf.getString("TOPOSOID_CONTENTS_ADMIN_HOST"),
+                conf.getString("TOPOSOID_CONTENTS_ADMIN_PORT"),
+                "registerTable", transversalState)
+              val registeredContentResult: RegisteredTableContentResult = Json.parse(knowledgeForTableJson).as[RegisteredTableContentResult]
+              if (registeredContentResult.statusInfo.status.equals("ERROR")) throw new Exception(registeredContentResult.statusInfo.message)
+              registeredContentResult.knowledgeForTable
+            })
+            val knowledge = Knowledge(sentence = x.knowledge.sentence,
+              lang = x.knowledge.lang, extentInfoJson = x.knowledge.extentInfoJson,
+              isNegativeSentence = x.knowledge.isNegativeSentence, knowledgeForImages=x.knowledge.knowledgeForImages, knowledgeForTables=knowledgeForTables)
             acc :+ KnowledgeForParser(x.propositionId, x.sentenceId, knowledge)
           }
         }

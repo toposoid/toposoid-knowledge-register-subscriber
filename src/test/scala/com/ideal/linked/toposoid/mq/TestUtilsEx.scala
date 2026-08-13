@@ -34,6 +34,24 @@ import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCrede
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.{SqsAsyncClient, SqsClient}
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
+import com.ideal.linked.toposoid.knowledgebase.table.model.SingleTable
+import com.ideal.linked.toposoid.knowledgebase.regist.model.KnowledgeForImage
+import sttp.client4._
+import sttp.model._
+import com.ideal.linked.toposoid.knowledgebase.regist.model.Reference
+import com.ideal.linked.toposoid.knowledgebase.regist.model.TableReference
+import com.ideal.linked.toposoid.knowledgebase.regist.model.KnowledgeForTable
+import play.api.libs.json.{Json, OWrites, Reads}
+import com.ideal.linked.toposoid.common.TRANSVERSAL_STATE
+import java.nio.file.Path
+import scala.concurrent.duration.{Duration, DurationInt}
+import com.ideal.linked.toposoid.knowledgebase.regist.model.ImageReference
+
+case class UploadResult(id: String, url:String, status:Int)
+object UploadResult {
+  implicit val jsonWrites: OWrites[UploadResult] = Json.writes[UploadResult]
+  implicit val jsonReads: Reads[UploadResult] = Json.reads[UploadResult]
+}
 
 object TestUtilsEx {
   val neo4JUtils = new Neo4JUtilsImpl()
@@ -46,12 +64,14 @@ object TestUtilsEx {
     neo4JUtils.executeQueryAndReturn(query:String, transversalState:TransversalState)
   }
 
-   def deleteFeatureVector(featureVectorIdentifier: FeatureVectorIdentifier, featureType: FeatureType, transversalState:TransversalState): Unit = {
+  def deleteFeatureVector(featureVectorIdentifier: FeatureVectorIdentifier, featureType: FeatureType, transversalState:TransversalState): Unit = {
     val json: String = Json.toJson(featureVectorIdentifier).toString()
     if (featureType.equals(FeatureType.SENTENCE)) {
       ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_SENTENCE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
     } else if (featureType.equals(FeatureType.IMAGE)) {
       ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
+    } else if (featureType.equals(FeatureType.TABLE)) {
+      ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_TALBE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_TABLE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
     }
   }
 
@@ -59,6 +79,13 @@ object TestUtilsEx {
     val singleImage = SingleImage(url)
     val json: String = Json.toJson(singleImage).toString()
     val featureVectorJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_COMMON_IMAGE_RECOGNITION_HOST"), conf.getString("TOPOSOID_COMMON_IMAGE_RECOGNITION_PORT"), "getFeatureVector", transversalState)
+    Json.parse(featureVectorJson).as[FeatureVector]
+  }
+
+  def getTableVector(url: String, transversalState:TransversalState): FeatureVector = {
+    val singleTable = SingleTable(url)
+    val json: String = Json.toJson(singleTable).toString()
+    val featureVectorJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_COMMON_TABLE_RECOGNITION_HOST"), conf.getString("TOPOSOID_COMMON_TABLE_RECOGNITION_PORT"), "getFeatureVector", transversalState)
     Json.parse(featureVectorJson).as[FeatureVector]
   }
 
@@ -73,6 +100,59 @@ object TestUtilsEx {
     val json = Json.toJson(knowledgeRegisterHistoryRecord).toString()
     val result = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_RDB_WEB_HOST"), conf.getString("TOPOSOID_RDB_WEB_PORT"), "searchKnowledgeRegisterHistoryByPropositionId", transversalState)
     Json.parse(result).as[List[KnowledgeRegisterHistoryRecord]]
+  }
+
+  def uploadImage(knowledgeForImage: KnowledgeForImage, transversalState: TransversalState): KnowledgeForImage = {
+    
+    val endpoint = "http://" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_HOST") + ":" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_PORT") + "/upload"    
+    val backend = DefaultSyncBackend(
+      options = BackendOptions.connectionTimeout(1.minute))
+    val request = basicRequest
+    .header(TRANSVERSAL_STATE.str, Json.toJson(transversalState).toString())      
+    .httpVersion(HttpVersion.HTTP_1_1)
+    .post(uri"${endpoint}") // Replace with your upload endpoint
+    .multipartBody(
+        multipart("featureType", FeatureType.IMAGE.index.toString),
+        multipart("url", knowledgeForImage.imageReference.reference.originalUrlOrReference), // デフォルト値を明示的に送る場合              
+    )
+    val response = request.send(backend)
+    val responseJson = response.body match {
+      case Right(successBody) => s"$successBody"
+      case Left(errorBody) => s"Upload failed. Status code: ${response.code}. Error body: $errorBody"
+    }
+
+    val uploadResult = Json.parse(responseJson).as[UploadResult]
+
+    val reference = Reference(url = uploadResult.url, surface = "", surfaceIndex = -1, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
+    val imageReference = ImageReference(reference = reference, x = 0, y = 0, width = 640, height = 480)
+    KnowledgeForImage(id = uploadResult.id, imageReference = imageReference)
+  }
+
+  def uploadTable(file:Path, transversalState: TransversalState): KnowledgeForTable = {
+
+    val endpoint = "http://" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_HOST") + ":" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_PORT") + "/upload"    
+    val backend = DefaultSyncBackend(
+      options = BackendOptions.connectionTimeout(1.minute))
+    val request = basicRequest
+    .header(TRANSVERSAL_STATE.str, Json.toJson(transversalState).toString())      
+    .httpVersion(HttpVersion.HTTP_1_1)
+    .post(uri"${endpoint}") // Replace with your upload endpoint
+    .multipartBody(
+        multipart("featureType", FeatureType.TABLE.index.toString),
+        multipart("url", ""), // デフォルト値を明示的に送る場合     
+        multipartFile("uploadfile", file.toFile()).fileName(file.getFileName().toString()).contentType("application/octet-stream") // "file" is the field name on the server         
+    )
+    val response = request.send(backend)
+    val responseJson = response.body match {
+      case Right(successBody) => s"$successBody"
+      case Left(errorBody) => s"Upload failed. Status code: ${response.code}. Error body: $errorBody"
+    }
+
+    val uploadResult = Json.parse(responseJson).as[UploadResult]
+    val reference = Reference(url = uploadResult.url, surface = "", surfaceIndex = -1, isWholeSentence = false, originalUrlOrReference = file.getFileName().toString(), metaInformations = List.empty[String])
+    val tableReference = TableReference(reference=reference)
+    KnowledgeForTable(id = uploadResult.id, tableReference = tableReference)
+
   }
 
 }
