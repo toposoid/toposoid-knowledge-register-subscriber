@@ -122,13 +122,13 @@ object TestUtilsEx {
     }
 
     val uploadResult = Json.parse(responseJson).as[UploadResult]
-
-    val reference = Reference(url = uploadResult.url, surface = "", surfaceIndex = -1, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
+    val imageReferenceOrg = knowledgeForImage.imageReference.reference
+    val reference = Reference(url = uploadResult.url, surface = imageReferenceOrg.surface, surfaceIndex = imageReferenceOrg.surfaceIndex, isWholeSentence = imageReferenceOrg.isWholeSentence, originalUrlOrReference = knowledgeForImage.imageReference.reference.originalUrlOrReference, metaInformations = List.empty[String])
     val imageReference = ImageReference(reference = reference, x = 0, y = 0, width = 640, height = 480)
     KnowledgeForImage(id = uploadResult.id, imageReference = imageReference)
   }
 
-  def uploadTable(file:Path, transversalState: TransversalState): KnowledgeForTable = {
+  def uploadTable(file:Path, knowledgeForTable: KnowledgeForTable, transversalState: TransversalState): KnowledgeForTable = {
 
     val endpoint = "http://" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_HOST") + ":" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_PORT") + "/upload"    
     val backend = DefaultSyncBackend(
@@ -148,9 +148,10 @@ object TestUtilsEx {
       case Left(errorBody) => s"Upload failed. Status code: ${response.code}. Error body: $errorBody"
     }
 
-    val uploadResult = Json.parse(responseJson).as[UploadResult]
-    val reference = Reference(url = uploadResult.url, surface = "", surfaceIndex = -1, isWholeSentence = false, originalUrlOrReference = file.getFileName().toString(), metaInformations = List.empty[String])
-    val tableReference = TableReference(reference=reference)
+    val uploadResult = Json.parse(responseJson).as[UploadResult]    
+    val tableReferenceOrg = knowledgeForTable.tableReference.reference
+    val reference = Reference(url = uploadResult.url, surface = tableReferenceOrg.surface, surfaceIndex = tableReferenceOrg.surfaceIndex, isWholeSentence = tableReferenceOrg.isWholeSentence, originalUrlOrReference = file.getFileName().toString(), metaInformations = List.empty[String])
+    val tableReference = TableReference(reference=reference, skipHeaderRows = knowledgeForTable.tableReference.skipHeaderRows, skipRowList = knowledgeForTable.tableReference.skipRowList, multiHeaderRowsForExcel =  knowledgeForTable.tableReference.multiHeaderRowsForExcel, sheetNameForExcel =  knowledgeForTable.tableReference.sheetNameForExcel)
     KnowledgeForTable(id = uploadResult.id, tableReference = tableReference)
 
   }
