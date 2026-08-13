@@ -149,14 +149,14 @@ object KnowledgeRegisterSubscriber extends App {
 
       def registerKnowledge(knowledgeSentenceSetForParser:KnowledgeSentenceSetForParser, transversalState:TransversalState) = Try {
         
-        val knowledgeSentenceSetForParserWithImage = KnowledgeSentenceSetForParser(
+        val knowledgeSentenceSetForParserWithFeature = KnowledgeSentenceSetForParser(
           registerKnowledgeTables(registerKnowledgeImages(knowledgeSentenceSetForParser.premiseList, transversalState), transversalState),
           knowledgeSentenceSetForParser.premiseLogicRelation,
           registerKnowledgeTables(registerKnowledgeImages(knowledgeSentenceSetForParser.claimList, transversalState), transversalState),
           knowledgeSentenceSetForParser.claimLogicRelation)
 
-        val premiseAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.premiseList, transversalState)
-        val claimAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithImage.claimList, transversalState)
+        val premiseAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithFeature .premiseList, transversalState)
+        val claimAnalyzedPropositionPairs = getAnalyzedPropositionPairs(knowledgeSentenceSetForParserWithFeature.claimList, transversalState)
 
         val classifiedKnowledgeBySentenceType = classifyKnowledgeBySentenceType(
           premiseList = premiseAnalyzedPropositionPairs,
@@ -165,7 +165,7 @@ object KnowledgeRegisterSubscriber extends App {
           claimLogicRelation = knowledgeSentenceSetForParser.claimLogicRelation
         )
         Sentence2Neo4jTransformer.createGraph(classifiedKnowledgeBySentenceType, transversalState)
-        FeatureVectorizer.createVector(knowledgeSentenceSetForParserWithImage, transversalState)
+        FeatureVectorizer.createVector(knowledgeSentenceSetForParserWithFeature, transversalState)
       } match {
         case Success(s) => s
         case Failure(e) => throw e
