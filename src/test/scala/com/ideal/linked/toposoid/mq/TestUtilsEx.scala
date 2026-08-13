@@ -46,6 +46,9 @@ import com.ideal.linked.toposoid.common.TRANSVERSAL_STATE
 import java.nio.file.Path
 import scala.concurrent.duration.{Duration, DurationInt}
 import com.ideal.linked.toposoid.knowledgebase.regist.model.ImageReference
+import java.net.URI
+import scala.util.Try
+import java.nio.file.Paths
 
 case class UploadResult(id: String, url:String, status:Int)
 object UploadResult {
@@ -71,8 +74,16 @@ object TestUtilsEx {
     } else if (featureType.equals(FeatureType.IMAGE)) {
       ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_IMAGE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
     } else if (featureType.equals(FeatureType.TABLE)) {
-      ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_TALBE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_TABLE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
+      ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_TABLE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_TABLE_VECTORDB_ACCESSOR_PORT"), "delete", transversalState)
     }
+  }
+
+  def isUrl(input: String): Boolean = {
+    Try {
+      val uri = URI.create(input)
+      val scheme = uri.getScheme
+      scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+    }.getOrElse(false)
   }
 
   def getImageVector(url: String, transversalState:TransversalState): FeatureVector = {
@@ -107,20 +118,35 @@ object TestUtilsEx {
     val endpoint = "http://" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_HOST") + ":" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_PORT") + "/upload"    
     val backend = DefaultSyncBackend(
       options = BackendOptions.connectionTimeout(1.minute))
-    val request = basicRequest
-    .header(TRANSVERSAL_STATE.str, Json.toJson(transversalState).toString())      
-    .httpVersion(HttpVersion.HTTP_1_1)
-    .post(uri"${endpoint}") // Replace with your upload endpoint
-    .multipartBody(
-        multipart("featureType", FeatureType.IMAGE.index.toString),
-        multipart("url", knowledgeForImage.imageReference.reference.originalUrlOrReference), // デフォルト値を明示的に送る場合              
-    )
+    val request = isUrl(knowledgeForImage.imageReference.reference.originalUrlOrReference) match {
+      case true => {
+        basicRequest
+        .header(TRANSVERSAL_STATE.str, Json.toJson(transversalState).toString())      
+        .httpVersion(HttpVersion.HTTP_1_1)
+        .post(uri"${endpoint}") // Replace with your upload endpoint
+        .multipartBody(
+            multipart("featureType", FeatureType.IMAGE.index.toString),
+            multipart("url", knowledgeForImage.imageReference.reference.originalUrlOrReference),
+        )
+      }
+      case _ => {
+        val file: Path = Paths.get(knowledgeForImage.imageReference.reference.originalUrlOrReference)
+        basicRequest
+        .header(TRANSVERSAL_STATE.str, Json.toJson(transversalState).toString())      
+        .httpVersion(HttpVersion.HTTP_1_1)
+        .post(uri"${endpoint}") // Replace with your upload endpoint
+        .multipartBody(
+            multipart("featureType", FeatureType.IMAGE.index.toString),
+            multipart("url", ""), 
+            multipartFile("uploadfile", file.toFile()).fileName(file.getFileName().toString()).contentType("application/octet-stream") // "file" is the field name on the server         
+        )
+      }
+    }
     val response = request.send(backend)
     val responseJson = response.body match {
       case Right(successBody) => s"$successBody"
       case Left(errorBody) => s"Upload failed. Status code: ${response.code}. Error body: $errorBody"
     }
-
     val uploadResult = Json.parse(responseJson).as[UploadResult]
     val imageReferenceOrg = knowledgeForImage.imageReference.reference
     val reference = Reference(url = uploadResult.url, surface = imageReferenceOrg.surface, surfaceIndex = imageReferenceOrg.surfaceIndex, isWholeSentence = imageReferenceOrg.isWholeSentence, originalUrlOrReference = knowledgeForImage.imageReference.reference.originalUrlOrReference, metaInformations = List.empty[String])
@@ -128,29 +154,43 @@ object TestUtilsEx {
     KnowledgeForImage(id = uploadResult.id, imageReference = imageReference)
   }
 
-  def uploadTable(file:Path, knowledgeForTable: KnowledgeForTable, transversalState: TransversalState): KnowledgeForTable = {
+  def uploadTable(knowledgeForTable: KnowledgeForTable, transversalState: TransversalState): KnowledgeForTable = {
 
     val endpoint = "http://" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_HOST") + ":" + conf.getString("TOPOSOID_FILE_UPLOAD_FACADE_PORT") + "/upload"    
     val backend = DefaultSyncBackend(
       options = BackendOptions.connectionTimeout(1.minute))
-    val request = basicRequest
-    .header(TRANSVERSAL_STATE.str, Json.toJson(transversalState).toString())      
-    .httpVersion(HttpVersion.HTTP_1_1)
-    .post(uri"${endpoint}") // Replace with your upload endpoint
-    .multipartBody(
-        multipart("featureType", FeatureType.TABLE.index.toString),
-        multipart("url", ""), // デフォルト値を明示的に送る場合     
-        multipartFile("uploadfile", file.toFile()).fileName(file.getFileName().toString()).contentType("application/octet-stream") // "file" is the field name on the server         
-    )
+    val request = isUrl(knowledgeForTable.tableReference.reference.originalUrlOrReference) match {
+      case true => {
+        basicRequest
+        .header(TRANSVERSAL_STATE.str, Json.toJson(transversalState).toString())      
+        .httpVersion(HttpVersion.HTTP_1_1)
+        .post(uri"${endpoint}") // Replace with your upload endpoint
+        .multipartBody(
+            multipart("featureType", FeatureType.TABLE.index.toString),
+            multipart("url", knowledgeForTable.tableReference.reference.originalUrlOrReference), // デフォルト値を明示的に送る場合     
+        )
+      }
+      case _ => {
+        val file: Path = Paths.get(knowledgeForTable.tableReference.reference.originalUrlOrReference)
+        basicRequest
+        .header(TRANSVERSAL_STATE.str, Json.toJson(transversalState).toString())      
+        .httpVersion(HttpVersion.HTTP_1_1)
+        .post(uri"${endpoint}") // Replace with your upload endpoint
+        .multipartBody(
+            multipart("featureType", FeatureType.TABLE.index.toString),
+            multipart("url", ""), // デフォルト値を明示的に送る場合     
+            multipartFile("uploadfile", file.toFile()).fileName(file.getFileName().toString()).contentType("application/octet-stream") // "file" is the field name on the server         
+        )
+      }
+    }            
     val response = request.send(backend)
     val responseJson = response.body match {
       case Right(successBody) => s"$successBody"
       case Left(errorBody) => s"Upload failed. Status code: ${response.code}. Error body: $errorBody"
     }
-
     val uploadResult = Json.parse(responseJson).as[UploadResult]    
     val tableReferenceOrg = knowledgeForTable.tableReference.reference
-    val reference = Reference(url = uploadResult.url, surface = tableReferenceOrg.surface, surfaceIndex = tableReferenceOrg.surfaceIndex, isWholeSentence = tableReferenceOrg.isWholeSentence, originalUrlOrReference = file.getFileName().toString(), metaInformations = List.empty[String])
+    val reference = Reference(url = uploadResult.url, surface = tableReferenceOrg.surface, surfaceIndex = tableReferenceOrg.surfaceIndex, isWholeSentence = tableReferenceOrg.isWholeSentence, originalUrlOrReference = knowledgeForTable.tableReference.reference.originalUrlOrReference, metaInformations = List.empty[String])
     val tableReference = TableReference(reference=reference, skipHeaderRows = knowledgeForTable.tableReference.skipHeaderRows, skipRowList = knowledgeForTable.tableReference.skipRowList, multiHeaderRowsForExcel =  knowledgeForTable.tableReference.multiHeaderRowsForExcel, sheetNameForExcel =  knowledgeForTable.tableReference.sheetNameForExcel)
     KnowledgeForTable(id = uploadResult.id, tableReference = tableReference)
 
