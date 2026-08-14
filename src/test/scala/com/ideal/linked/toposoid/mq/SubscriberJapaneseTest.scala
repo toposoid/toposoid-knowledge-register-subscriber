@@ -29,6 +29,10 @@ import com.ideal.linked.toposoid.protocol.model.neo4j.Neo4jRecords
 import com.ideal.linked.toposoid.vectorizer.FeatureVectorizer
 //import io.jvm.uuid.UUID
 import play.api.libs.json.Json
+import com.ideal.linked.toposoid.mq.TestUtilsEx.uploadImage
+import com.ideal.linked.toposoid.knowledgebase.regist.model.TableReference
+import com.ideal.linked.toposoid.knowledgebase.regist.model.KnowledgeForTable
+import com.ideal.linked.toposoid.mq.TestUtilsEx.uploadTable
 
 class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with BeforeAndAfterAll {
 
@@ -59,31 +63,45 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
 
     val knowledge1 = Knowledge(sentence = "これはテストの前提1です。", lang = "ja_JP", extentInfoJson = "{}")
     val knowledge2 = Knowledge(sentence = "これはテストの前提2です。", lang = "ja_JP", extentInfoJson = "{}")
-    val reference3 = Reference(url = "", surface = "猫が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
-    val reference3a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "http://images.cocodataset.org/val2017/000000039769.jpg", metaInformations = List.empty[String])
+    val reference3 = Reference(url = "", surface = "猫が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "src/test/resources/IMG_TEST.jpg", metaInformations = List.empty[String])
+    val reference3a = Reference(url = "", surface = "データが", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "src/test/resources/JAPANESE_TEST_TABLE.tsv", metaInformations = List.empty[String])
+    
     val imageReference3 = ImageReference(reference = reference3, x = 27, y = 41, width = 287, height = 435)
-    val knowledgeForImages3 = KnowledgeForImage(id = "", imageReference = imageReference3)
+    val knowledgeForImages3 = uploadImage(KnowledgeForImage(id = "", imageReference = imageReference3),transversalState)         
     val knowledge3 = Knowledge(sentence = "猫が２匹います。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages=List(knowledgeForImages3))
-    //val imageReference3a = ImageReference(reference = reference3a, x = 27, y = 41, width = 287, height = 435)
-    //val knowledgeForImages3a = KnowledgeForImage(id = "", imageReference = imageReference3a)
-    //val knowledge3a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_1", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages=List(knowledgeForImages3a))
+    
+    val tableReference3a = TableReference(reference = reference3a)
+    val knowledgeForTable3a = uploadTable(KnowledgeForTable(id = "", tableReference = tableReference3a), transversalState)
+    val knowledge3a = Knowledge(sentence = "データがあります。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForTables=List(knowledgeForTable3a))
 
     val knowledge4 = Knowledge(sentence = "これはテストの主張1です。", lang = "ja_JP", extentInfoJson = "{}")
     val knowledge5 = Knowledge(sentence = "これはテストの主張2です。", lang = "ja_JP", extentInfoJson = "{}")
     val reference6 = Reference(url = "", surface = "犬が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "http://images.cocodataset.org/train2017/000000428746.jpg", metaInformations = List.empty[String])
     val reference6a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "https://farm8.staticflickr.com/7103/7210629614_5a388d9a9c_z.jpg", metaInformations = List.empty[String])
+
     val imageReference6 = ImageReference(reference = reference6, x = 435, y = 227, width = 91, height = 69)
-    val knowledgeForImages6 = KnowledgeForImage(id = "", imageReference = imageReference6)
+    val knowledgeForImages6 = uploadImage(KnowledgeForImage(id = "", imageReference = imageReference6),transversalState)
     val knowledge6 = Knowledge(sentence = "犬が1匹います。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6))
     val imageReference6a = ImageReference(reference = reference6a, x = 23, y = 25, width = 601, height = 341)
-    val knowledgeForImages6a = KnowledgeForImage(id = "", imageReference = imageReference6a)
+    val knowledgeForImages6a = uploadImage(KnowledgeForImage(id = "", imageReference = imageReference6a),transversalState)
     val knowledge6a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10", lang = "@@_#1", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6a))
 
+    val reference7 = Reference(url = "", surface = "証拠が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "https://www.e-stat.go.jp/stat-search/file-download?statInfId=000001086170&fileKind=0", metaInformations = List.empty[String])
+    val tableReference7 = TableReference(reference = reference7, skipHeaderRows= 5, multiHeaderRowsForExcel=4, sheetNameForExcel="se0101")
+    val knowledgeForTable7 = uploadTable(KnowledgeForTable(id = "", tableReference = tableReference7), transversalState)
+    val knowledge7 = Knowledge(sentence = "証拠があります。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForTables = List(knowledgeForTable7))
+
+    val reference7a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "https://www.e-stat.go.jp/stat-search/file-download?statInfId=000001086171&fileKind=0", metaInformations = List.empty[String])
+    val tableReference7a = TableReference(reference = reference7a, skipHeaderRows= 8, multiHeaderRowsForExcel=4, sheetNameForExcel="se0102")
+    val knowledgeForTable7a = uploadTable(KnowledgeForTable(id = "", tableReference = tableReference7a), transversalState)
+    val knowledge7a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_11", lang = "@@_#1", extentInfoJson = "{}", knowledgeForTables = List(knowledgeForTable7a))
+    
+
     val knowledgeSentenceSet = KnowledgeSentenceSet(
-      premiseList = List(knowledge1, knowledge2, knowledge3),
-      premiseLogicRelation = List(PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2)),
-      claimList = List(knowledge4, knowledge5, knowledge6, knowledge6a),
-      claimLogicRelation = List(PropositionRelation(operator = "OR", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2))
+      premiseList = List(knowledge1, knowledge2, knowledge3, knowledge3a),
+      premiseLogicRelation = List(PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 3)),
+      claimList = List(knowledge4, knowledge5, knowledge6, knowledge6a, knowledge7, knowledge7a),
+      claimLogicRelation = List(PropositionRelation(operator = "OR", sourceIndex = 0, destinationIndex = 1), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 2), PropositionRelation(operator = "AND", sourceIndex = 0, destinationIndex = 4))
     )
     val knowledgeRegistrationForManual = KnowledgeRegistrationForManual(knowledgeSentenceSet = knowledgeSentenceSet, transversalState = transversalState)
     val jsonStr = Json.toJson(knowledgeRegistrationForManual).toString()
@@ -97,7 +115,7 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val result1: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (n:ClaimNode{surface: 'NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10'}) RETURN n", transversalState)
     assert(result1.records.size == 1)
 
-    val result2: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/val2017/000000039769.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'猫が'}) RETURN s, t", transversalState)
+    val result2: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'src/test/resources/IMG_TEST.jpg'})-[:ImageEdge]->(t:PremiseNode{surface:'猫が'}) RETURN s, t", transversalState)
     assert(result2.records.size == 1)
     val urlCat = result2.records.head.head.value.featureNode.get.url
     val result3: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'http://images.cocodataset.org/train2017/000000428746.jpg'})-[:ImageEdge]->(t:ClaimNode{surface:'犬が'}) RETURN s, t", transversalState)
@@ -106,6 +124,17 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val result4: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:ImageNode{source:'https://farm8.staticflickr.com/7103/7210629614_5a388d9a9c_z.jpg'})-[:ImageEdge]->(t:SemiGlobalClaimNode) RETURN s, t", transversalState)
     assert(result4.records.size == 1)
     val urlTrack = result4.records.head.head.value.featureNode.get.url
+
+    val result5: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:TableNode{source:'src/test/resources/JAPANESE_TEST_TABLE.tsv'})-[:TableEdge]->(t:PremiseNode{surface:'データが'}) RETURN s, t", transversalState)
+    val urlTable1 = result5.records.head.head.value.featureNode.get.url
+    assert(result5.records.size == 1)
+    val result6: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:TableNode{source:'https://www.e-stat.go.jp/stat-search/file-download?statInfId=000001086170&fileKind=0'})-[:TableEdge]->(t:ClaimNode{surface:'証拠が'}) RETURN s, t", transversalState)
+    val urlTable2 = result6.records.head.head.value.featureNode.get.url
+    assert(result6.records.size == 1)
+    val result7: Neo4jRecords = TestUtilsEx.executeQueryAndReturn("MATCH (s:TableNode{source:'https://www.e-stat.go.jp/stat-search/file-download?statInfId=000001086171&fileKind=0'})-[:TableEdge]->(t:SemiGlobalClaimNode) RETURN s, t", transversalState)
+    val urlTable3 = result7.records.head.head.value.featureNode.get.url
+    assert(result7.records.size == 1)
+
 
 
     for (knowledge <- knowledgeSentenceSet.premiseList ::: knowledgeSentenceSet.claimList) {
@@ -130,6 +159,22 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
         assert(result.ids.size > 0 && result.similarities.head > 0.999)
         result.ids.map(x => TestUtilsEx.deleteFeatureVector(x, FeatureType.IMAGE, transversalState))
       })
+
+      knowledge.knowledgeForTables.foreach(x => {
+        val url: String = x.tableReference.reference.surface match {
+          case "データが" => urlTable1
+          case "証拠が" => urlTable2
+          case "" => urlTable3
+          case _ => "BAD URL"
+        }
+        val vector = TestUtilsEx.getTableVector(url, transversalState)
+        val json: String = Json.toJson(SingleFeatureVectorForSearch(vector = vector.vector, num = 1)).toString()
+        val featureVectorSearchResultJson: String = ToposoidUtils.callComponent(json, conf.getString("TOPOSOID_TABLE_VECTORDB_ACCESSOR_HOST"), conf.getString("TOPOSOID_TABLE_VECTORDB_ACCESSOR_PORT"), "search", transversalState)
+        val result = Json.parse(featureVectorSearchResultJson).as[FeatureVectorSearchResult]
+        assert(result.ids.size > 0 && result.similarities.filter(x => x > 0.95).size > 0)
+        result.ids.map(x => TestUtilsEx.deleteFeatureVector(x, FeatureType.TABLE, transversalState))
+      })
+
 
       val propositionIds = result.ids.map(_.superiorId).distinct
       assert(propositionIds.size == 1)
