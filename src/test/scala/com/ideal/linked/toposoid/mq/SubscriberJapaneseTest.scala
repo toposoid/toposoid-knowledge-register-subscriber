@@ -87,12 +87,12 @@ class SubscriberJapaneseTest extends AnyFlatSpec with BeforeAndAfter with Before
     val knowledge6a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_10", lang = "@@_#1", extentInfoJson = "{}", knowledgeForImages = List(knowledgeForImages6a))
 
     val reference7 = Reference(url = "", surface = "証拠が", surfaceIndex = 0, isWholeSentence = false, originalUrlOrReference = "https://www.e-stat.go.jp/stat-search/file-download?statInfId=000001086170&fileKind=0", metaInformations = List.empty[String])
-    val tableReference7 = TableReference(reference = reference7, skipHeaderRows= 5, multiHeaderRowsForExcel=4, sheetNameForExcel="se0101")
+    val tableReference7 = TableReference(reference = reference7, skipHeaderRows= 5, multiHeaderRows=4, sheetNameForExcel="se0101")
     val knowledgeForTable7 = uploadTable(KnowledgeForTable(id = "", tableReference = tableReference7), transversalState)
     val knowledge7 = Knowledge(sentence = "証拠があります。", lang = "ja_JP", extentInfoJson = "{}", knowledgeForTables = List(knowledgeForTable7))
 
     val reference7a = Reference(url = "", surface = "", surfaceIndex = -1, isWholeSentence = true, originalUrlOrReference = "https://www.e-stat.go.jp/stat-search/file-download?statInfId=000001086171&fileKind=0", metaInformations = List.empty[String])
-    val tableReference7a = TableReference(reference = reference7a, skipHeaderRows= 8, multiHeaderRowsForExcel=4, sheetNameForExcel="se0102")
+    val tableReference7a = TableReference(reference = reference7a, skipHeaderRows= 8, multiHeaderRows=4, sheetNameForExcel="se0102")
     val knowledgeForTable7a = uploadTable(KnowledgeForTable(id = "", tableReference = tableReference7a), transversalState)
     val knowledge7a = Knowledge(sentence = "NO_REFERENCE_5d9afee2-4c10-11f0-9f26-acde48001122_11", lang = "@@_#1", extentInfoJson = "{}", knowledgeForTables = List(knowledgeForTable7a))
     
